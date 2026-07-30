@@ -1,0 +1,191 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import ChangeForm from '@/components/ChangeForm';
+
+export interface SiteState {
+  name: string;
+  symbol: string;
+  description: string;
+  mint: string;
+  burnPercent: number;
+  cooldownSeconds: number;
+  cooldownRemaining: number;
+  history: {
+    name: string;
+    symbol: string;
+    wallet: string;
+    signature: string;
+    ts: number;
+  }[];
+}
+
+function shortAddr(addr: string) {
+  return addr.length > 12 ? `${addr.slice(0, 4)}...${addr.slice(-4)}` : addr;
+}
+
+export default function Home() {
+  const [state, setState] = useState<SiteState | null>(null);
+  const [imageBust, setImageBust] = useState(0);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/state', { cache: 'no-store' });
+      if (res.ok) setState(await res.json());
+    } catch {
+      // server unreachable; retry on next tick
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 10000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  const onChanged = useCallback(() => {
+    refresh();
+    setImageBust((n) => n + 1);
+  }, [refresh]);
+
+  const burnPercent = state?.burnPercent ?? 0.1;
+  const cooldownMin = Math.round((state?.cooldownSeconds ?? 120) / 60);
+
+  return (
+    <>
+      <header className="header">
+        <div className="container header-inner">
+          <div className="logo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Chameleon logo" />
+            <span>
+              {state?.name ?? 'Chameleon'}{' '}
+              {state?.symbol ? `($${state.symbol})` : ''}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section className="hero">
+          <div className="container">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="token-image" src={`/api/image?v=${imageBust}`} alt="Current token image" />
+            <h1>{state?.name ?? 'Chameleon'}</h1>
+            <div className="ticker">${state?.symbol ?? 'CHMLN'}</div>
+            <p className="tagline">
+              The coin that changes its skin. Any holder can burn{' '}
+              <strong>{burnPercent}%</strong> of their own balance to change the
+              token&apos;s name, ticker and image — straight on-chain. Only this
+              website never changes.
+            </p>
+            {state?.mint ? (
+              <p className="mint-line">
+                Mint:{' '}
+                <a
+                  href={`https://solscan.io/token/${state.mint}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {state.mint}
+                </a>
+              </p>
+            ) : (
+              <p className="mint-line">Token not launched yet — coming soon.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="section">
+          <div className="container">
+            <h2>How it works</h2>
+            <div className="cards">
+              <div className="card">
+                <div className="step">1</div>
+                <h3>Connect your wallet</h3>
+                <p>You need to hold any amount of the token in your wallet.</p>
+              </div>
+              <div className="card">
+                <div className="step">2</div>
+                <h3>Pick the new look</h3>
+                <p>Fill in the new name, the new ticker and upload the new image.</p>
+              </div>
+              <div className="card">
+                <div className="step">3</div>
+                <h3>Burn {burnPercent}%</h3>
+                <p>
+                  Approve the transaction that burns {burnPercent}% of your
+                  balance. The burn is verified on-chain.
+                </p>
+              </div>
+              <div className="card">
+                <div className="step">4</div>
+                <h3>Instant change</h3>
+                <p>
+                  The metadata is updated right away. After that, a{' '}
+                  {cooldownMin}-minute cooldown until the next change.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="section" id="change">
+          <div className="container">
+            <h2>Change the token</h2>
+            <ChangeForm state={state} onChanged={onChanged} />
+          </div>
+        </section>
+
+        <section className="section">
+          <div className="container">
+            <h2>Latest changes</h2>
+            {state && state.history.length > 0 ? (
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Name</th>
+                    <th>Ticker</th>
+                    <th>By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.history.map((h) => (
+                    <tr key={h.signature}>
+                      <td>{new Date(h.ts * 1000).toLocaleString('en-US')}</td>
+                      <td>{h.name}</td>
+                      <td>${h.symbol}</td>
+                      <td className="addr">
+                        <a
+                          href={`https://solscan.io/account/${h.wallet}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {shortAddr(h.wallet)}
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p style={{ color: 'var(--text-soft)' }}>
+                No changes yet. Be the first to change the chameleon&apos;s skin.
+              </p>
+            )}
+          </div>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <div className="container">
+          <p>
+            Burned tokens are destroyed permanently. This is not financial
+            advice — join for the fun of it.
+          </p>
+        </div>
+      </footer>
+    </>
+  );
+}
