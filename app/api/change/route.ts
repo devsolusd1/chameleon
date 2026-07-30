@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readState, saveImage, writeState } from '@/lib/store';
+import { acquireLock, readState, releaseLock, saveImage, writeState } from '@/lib/store';
 import { verifyBurn } from '@/lib/verifyBurn';
 import { updateOnChainMetadata } from '@/lib/updateMetadata';
 import { pinataEnabled, pinFile, pinJson } from '@/lib/pinata';
@@ -17,18 +17,15 @@ export const dynamic = 'force-dynamic';
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif'];
 
-// Prevents two changes from being processed at the same time
-let processing = false;
-
 export async function POST(request: Request) {
   if (!MINT_ADDRESS) {
     return NextResponse.json({ error: 'Token is not configured on the server yet.' }, { status: 500 });
   }
 
-  if (processing) {
+  // Prevents two changes from being processed at the same time
+  if (!(await acquireLock())) {
     return NextResponse.json({ error: 'Another change is being processed. Try again in a moment.' }, { status: 429 });
   }
-  processing = true;
 
   try {
     const form = await request.formData();
@@ -66,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     // --- Cooldown ---
-    const state = readState();
+    const state = await readState();
     const now = Math.floor(Date.now() / 1000);
     const remaining = state.lastChangeTs > 0 ? COOLDOWN_SECONDS - (now - state.lastChangeTs) : 0;
     if (remaining > 0) {
@@ -127,7 +124,7 @@ export async function POST(request: Request) {
       ...state.history.slice(-100),
       { name, symbol, wallet, signature, ts: newState.lastChangeTs },
     ];
-    writeState(newState);
+    await writeState(newState);
 
     return NextResponse.json({
       ok: true,
@@ -141,6 +138,6 @@ export async function POST(request: Request) {
     const message = err instanceof Error ? err.message : 'Internal error.';
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
-    processing = false;
+    await releaseLock();
   }
 }

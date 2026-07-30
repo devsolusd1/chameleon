@@ -77,10 +77,23 @@ serves the metadata itself at the fixed URI `NEXT_PUBLIC_BASE_URL/api/metadata`.
 
 ## Deployment — IMPORTANT
 
-- The state (current name/ticker/image, cooldown, history) lives in `data/`
-  on disk. **Host on a server with a persistent disk** (VPS, Railway, Render
-  with a volume, Fly.io with a volume). Vercel/Netlify won't work because
-  their filesystem is ephemeral.
+### Vercel (recommended)
+
+1. Import the GitHub repo in Vercel.
+2. Add the **Upstash Redis** integration (Marketplace → Upstash → free plan).
+   It injects `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` (or
+   `KV_REST_API_URL`/`KV_REST_API_TOKEN`) automatically — the app accepts both.
+3. Set `PINATA_JWT` (required on Vercel: the filesystem is ephemeral, so
+   images must live on IPFS).
+4. Add the remaining environment variables from the table above, with
+   `SITE_URL` and `NEXT_PUBLIC_BASE_URL` pointing to your production domain.
+5. Deploy. Every push to `main` redeploys automatically.
+
+Without Redis configured the app falls back to file storage in `data/`
+(local development), which also works on any host with a persistent disk
+(VPS, Railway, Render/Fly.io with a volume).
+
+### General notes
 - `UPDATE_AUTHORITY_SECRET` is the key that controls the token's metadata.
   Never expose it, never commit it. Use a dedicated wallet just for this,
   holding a small amount of SOL for update fees (~0.000005 SOL per change).

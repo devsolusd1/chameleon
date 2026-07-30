@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 // Fixed token URI: the JSON changes, the address never does.
 export async function GET() {
-  const state = readState();
+  const state = await readState();
   return NextResponse.json(
     {
       name: state.name,

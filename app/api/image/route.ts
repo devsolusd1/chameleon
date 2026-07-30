@@ -6,7 +6,12 @@ import { readImage, readState } from '@/lib/store';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const state = readState();
+  const state = await readState();
+
+  // Pinata mode: the current image lives on IPFS
+  if (state.imageUrl) {
+    return NextResponse.redirect(state.imageUrl, 302);
+  }
 
   if (state.imageFile) {
     const buffer = readImage(state.imageFile);
