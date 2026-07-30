@@ -10,6 +10,7 @@ import {
   MAX_SYMBOL_LENGTH,
   MINT_ADDRESS,
   SITE_URL,
+  X_URL,
 } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
           description: state.description,
           image: imageUrl,
           external_url: SITE_URL,
-          extensions: { website: SITE_URL },
+          extensions: { website: SITE_URL, twitter: X_URL },
         },
         `${symbol}-metadata`,
       );

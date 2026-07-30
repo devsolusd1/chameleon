@@ -11,12 +11,15 @@ export const COOLDOWN_SECONDS = parseInt(process.env.COOLDOWN_SECONDS || '120', 
 
 export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-// Site oficial fixo — aparece no metadata e nunca muda
+// Fixed official website — shown in the metadata, never changes
 export const SITE_URL = process.env.SITE_URL || BASE_URL;
 
-// Idade máxima aceita para a transação de burn (evita reuso de tx antiga)
+// Official X (Twitter) profile — shown on the site and in the metadata
+export const X_URL = 'https://x.com/chameleonsol';
+
+// Maximum accepted age for the burn transaction (prevents reuse of old txs)
 export const MAX_BURN_TX_AGE_SECONDS = 15 * 60;
 
-// Limites do Metaplex Token Metadata
+// Metaplex Token Metadata limits
 export const MAX_NAME_LENGTH = 32;
 export const MAX_SYMBOL_LENGTH = 10;

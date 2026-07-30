@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readState } from '@/lib/store';
-import { BASE_URL, SITE_URL } from '@/lib/config';
+import { BASE_URL, SITE_URL, X_URL } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +16,7 @@ export async function GET() {
       external_url: SITE_URL,
       extensions: {
         website: SITE_URL,
+        twitter: X_URL,
       },
     },
     {
