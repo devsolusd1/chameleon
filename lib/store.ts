@@ -10,7 +10,17 @@ import { Redis } from '@upstash/redis';
  */
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-const redis = redisUrl && redisToken ? new Redis({ url: redisUrl, token: redisToken }) : null;
+
+function createRedis(): Redis | null {
+  if (!redisUrl || !redisToken) return null;
+  try {
+    return new Redis({ url: redisUrl, token: redisToken });
+  } catch (err) {
+    console.error('Failed to initialize Redis client:', err);
+    return null;
+  }
+}
+const redis = createRedis();
 
 const STATE_KEY = 'chameleon:state';
 const LOCK_KEY = 'chameleon:lock';
@@ -66,11 +76,11 @@ export async function readState(): Promise<TokenState> {
     const stored = await redis.get<TokenState>(STATE_KEY);
     return { ...DEFAULT_STATE, ...(stored ?? {}) };
   }
-  ensureDataDir();
-  if (!fs.existsSync(STATE_FILE)) {
-    return { ...DEFAULT_STATE };
-  }
+  // File fallback — never throws (read-only filesystems just get defaults)
   try {
+    if (!fs.existsSync(STATE_FILE)) {
+      return { ...DEFAULT_STATE };
+    }
     const raw = fs.readFileSync(STATE_FILE, 'utf-8');
     return { ...DEFAULT_STATE, ...JSON.parse(raw) };
   } catch {
@@ -83,8 +93,14 @@ export async function writeState(state: TokenState): Promise<void> {
     await redis.set(STATE_KEY, state);
     return;
   }
-  ensureDataDir();
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+  try {
+    ensureDataDir();
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+  } catch {
+    throw new Error(
+      'State storage is not configured: connect the Upstash Redis integration (Vercel → Storage tab) and redeploy.',
+    );
+  }
 }
 
 // --- Change lock (prevents two changes from processing at once) ---
