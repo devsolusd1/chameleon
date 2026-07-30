@@ -267,14 +267,40 @@ body {
   color: var(--text-soft);
 }
 
-.cooldown-banner {
-  background: var(--green);
-  color: var(--white);
+.cooldown-wait {
   text-align: center;
-  border-radius: 12px;
-  padding: 12px;
+  padding: 28px 12px;
+}
+
+.cooldown-wait .cooldown-label {
   font-weight: 700;
-  margin-bottom: 16px;
+  color: var(--green-dark);
+  font-size: 1.1rem;
+}
+
+.cooldown-wait .cooldown-time {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+  margin: 6px 0;
+}
+
+.cooldown-wait p {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.action-row .hint {
+  font-size: 0.85rem;
+  color: var(--text-soft);
 }
 
 /* History */

@@ -178,34 +178,18 @@ export default function ChangeForm({ state, onChanged }: Props) {
 
   return (
     <div className="form-box">
-      {inCooldown && (
-        <div className="cooldown-banner">
-          🕒 Cooldown active — next change in {Math.floor(cooldown / 60)}:
-          {String(cooldown % 60).padStart(2, '0')}
-        </div>
-      )}
-
-      <WalletMultiButton />
-
-      {notLaunched && (
+      {notLaunched ? (
         <div className="status info">The token has not launched yet. Check back soon!</div>
-      )}
-
-      {connected && !notLaunched && (
-        <div className="form-grid">
-          <div className="burn-info">
-            {balance === null ? (
-              'Loading your balance...'
-            ) : balance === 0n ? (
-              <>You don&apos;t hold this token. Grab some to be able to change its skin.</>
-            ) : (
-              <>
-                Your balance: <strong>{fmt(balance)}</strong> — required burn (
-                {burnPercent}%): <strong>{fmt(burnAmount)}</strong>
-              </>
-            )}
+      ) : inCooldown ? (
+        <div className="cooldown-wait">
+          <div className="cooldown-label">🕒 Cooldown active</div>
+          <div className="cooldown-time">
+            {Math.floor(cooldown / 60)}:{String(cooldown % 60).padStart(2, '0')}
           </div>
-
+          <p>The token was just changed. The form unlocks when the countdown ends.</p>
+        </div>
+      ) : (
+        <div className="form-grid">
           <div className="field">
             <label htmlFor="name">New name</label>
             <input
@@ -242,18 +226,36 @@ export default function ChangeForm({ state, onChanged }: Props) {
             )}
           </div>
 
-          <div>
-            <button
-              className="btn"
-              onClick={submit}
-              disabled={busy || inCooldown || balance === 0n || balance === null}
-            >
-              {busy
-                ? 'Processing...'
-                : inCooldown
-                  ? 'Wait for the cooldown'
-                  : `🔥 Burn ${burnPercent}% and change the token`}
-            </button>
+          {connected && (
+            <div className="burn-info">
+              {balance === null ? (
+                'Loading your balance...'
+              ) : balance === 0n ? (
+                <>You don&apos;t hold this token. Grab some to be able to change its skin.</>
+              ) : (
+                <>
+                  Your balance: <strong>{fmt(balance)}</strong> — required burn (
+                  {burnPercent}%): <strong>{fmt(burnAmount)}</strong>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="action-row">
+            <WalletMultiButton />
+            {connected ? (
+              <button
+                className="btn"
+                onClick={submit}
+                disabled={busy || balance === 0n || balance === null}
+              >
+                {busy ? 'Processing...' : `🔥 Burn ${burnPercent}% and change the token`}
+              </button>
+            ) : (
+              <span className="hint">
+                Connect your wallet to burn {burnPercent}% and submit the change.
+              </span>
+            )}
           </div>
         </div>
       )}
