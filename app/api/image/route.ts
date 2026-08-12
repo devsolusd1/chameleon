@@ -8,8 +8,9 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const state = await readState();
 
-  // Pinata mode: the current image lives on IPFS
-  if (state.imageUrl) {
+  // Pinata mode: the current image lives on IPFS. Never follow a URL that
+  // points back to this endpoint (self-redirect loop from older states).
+  if (state.imageUrl && !state.imageUrl.includes('/api/image')) {
     return NextResponse.redirect(state.imageUrl, 302);
   }
 

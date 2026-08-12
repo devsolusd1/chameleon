@@ -94,19 +94,22 @@ export async function POST(request: Request) {
     }
 
     // --- Pinata mode: pin image + metadata JSON to IPFS ---
-    let imageUrl = state.imageUrl;
+    // Only real pinned URLs are stored; '/api/image' must never be stored
+    // as imageUrl or the image endpoint would redirect to itself.
+    let imageUrl =
+      state.imageUrl && !state.imageUrl.includes('/api/image') ? state.imageUrl : null;
     let metadataUri: string | undefined;
     if (pinataEnabled()) {
       if (imageBuffer && imageType) {
         imageUrl = await pinFile(imageBuffer, 'token-image', imageType);
       }
-      if (!imageUrl) imageUrl = `${BASE_URL}/api/image`;
       metadataUri = await pinJson(
         {
           name,
           symbol,
           description: state.description,
-          image: imageUrl,
+          // Static fallback (never the /api/image endpoint itself)
+          image: imageUrl ?? `${BASE_URL}/logo.png`,
           external_url: SITE_URL,
           extensions: { website: SITE_URL, twitter: X_URL },
         },

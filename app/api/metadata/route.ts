@@ -12,7 +12,10 @@ export async function GET() {
       name: state.name,
       symbol: state.symbol,
       description: state.description,
-      image: state.imageUrl ?? `${BASE_URL}/api/image`,
+      image:
+        state.imageUrl && !state.imageUrl.includes('/api/image')
+          ? state.imageUrl
+          : `${BASE_URL}/logo.png`,
       external_url: SITE_URL,
       extensions: {
         website: SITE_URL,
