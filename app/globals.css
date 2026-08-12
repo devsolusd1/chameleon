@@ -355,6 +355,21 @@ body {
   font-size: 0.8rem;
 }
 
+.history-table td.txs {
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.history-table td.txs a {
+  color: var(--green-dark);
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.history-table td.txs a:hover {
+  text-decoration: underline;
+}
+
 /* Footer */
 .footer {
   border-top: 2px solid var(--green-light);

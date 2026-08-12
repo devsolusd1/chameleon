@@ -36,7 +36,10 @@ export interface ChangeRecord {
   name: string;
   symbol: string;
   wallet: string;
+  /** burn transaction signature */
   signature: string;
+  /** metadata update transaction signature */
+  updateSignature?: string;
   ts: number;
 }
 

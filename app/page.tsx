@@ -16,6 +16,7 @@ export interface SiteState {
     symbol: string;
     wallet: string;
     signature: string;
+    updateSignature?: string;
     ts: number;
   }[];
 }
@@ -165,6 +166,7 @@ export default function Home() {
                     <th>Name</th>
                     <th>Ticker</th>
                     <th>By</th>
+                    <th>Txs</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -181,6 +183,29 @@ export default function Home() {
                         >
                           {shortAddr(h.wallet)}
                         </a>
+                      </td>
+                      <td className="txs">
+                        <a
+                          href={`https://solscan.io/tx/${h.signature}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="Burn transaction"
+                        >
+                          🔥 burn
+                        </a>
+                        {h.updateSignature && (
+                          <>
+                            {' '}
+                            <a
+                              href={`https://solscan.io/tx/${h.updateSignature}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Metadata update transaction"
+                            >
+                              🦎 update
+                            </a>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}

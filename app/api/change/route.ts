@@ -134,7 +134,7 @@ export async function POST(request: Request) {
     newState.usedSignatures = [...state.usedSignatures.slice(-500), signature];
     newState.history = [
       ...state.history.slice(-100),
-      { name, symbol, wallet, signature, ts: newState.lastChangeTs },
+      { name, symbol, wallet, signature, updateSignature, ts: newState.lastChangeTs },
     ];
     await writeState(newState);
 
