@@ -321,6 +321,16 @@ body {
   color: var(--text-soft);
 }
 
+.section-note {
+  margin-top: 14px;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  background: var(--green-pale);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
 /* History */
 .history-table {
   width: 100%;

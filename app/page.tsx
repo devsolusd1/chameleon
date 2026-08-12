@@ -145,6 +145,12 @@ export default function Home() {
           <div className="container">
             <h2>Change the token</h2>
             <ChangeForm state={state} onChanged={onChanged} />
+            <p className="section-note">
+              ⏳ Changes are instant on-chain, but trading terminals and wallets
+              (Axiom, GMGN, Dexscreener, Phantom, etc.) cache token metadata and
+              may take several minutes — sometimes longer — to show the new
+              name, ticker and image.
+            </p>
           </div>
         </section>
 
