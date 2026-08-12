@@ -20,6 +20,10 @@ export const X_URL = 'https://x.com/chameleonsol';
 // Maximum accepted age for the burn transaction (prevents reuse of old txs)
 export const MAX_BURN_TX_AGE_SECONDS = 15 * 60;
 
-// Metaplex Token Metadata limits
-export const MAX_NAME_LENGTH = 32;
+// Form limits (Metaplex allows name up to 32 / symbol up to 10)
+export const MAX_NAME_LENGTH = 15;
 export const MAX_SYMBOL_LENGTH = 10;
+
+// Letters and numbers only; name may have single spaces between words
+export const NAME_REGEX = /^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/;
+export const SYMBOL_REGEX = /^[A-Za-z0-9]+$/;

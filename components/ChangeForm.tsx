@@ -107,8 +107,15 @@ export default function ChangeForm({ state, onChanged }: Props) {
 
   const submit = async () => {
     if (!publicKey || !mint || decimals === null) return;
-    if (!name.trim() || !symbol.trim()) {
-      setStatus({ kind: 'err', msg: 'Fill in the new name and the new ticker.' });
+    const cleanName = name.trim();
+    const cleanSymbol = symbol.trim();
+    // Validate BEFORE burning so nobody wastes a burn on invalid input
+    if (!/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(cleanName) || cleanName.length > 15) {
+      setStatus({ kind: 'err', msg: 'Invalid name: up to 15 characters, letters and numbers only.' });
+      return;
+    }
+    if (!/^[A-Za-z0-9]{1,10}$/.test(cleanSymbol)) {
+      setStatus({ kind: 'err', msg: 'Invalid ticker: up to 10 characters, letters and numbers only.' });
       return;
     }
     if (burnAmount === 0n) {
@@ -136,35 +143,54 @@ export default function ChangeForm({ state, onChanged }: Props) {
         'confirmed',
       );
 
-      // 2) Submit the form with proof of the burn
+      // 2) Submit the form with proof of the burn. If another change won
+      // the slot (cooldown/lock), retry automatically — the burn signature
+      // stays valid for ~15 minutes, so it is never wasted.
       setStatus({ kind: 'info', msg: 'Burn confirmed! Updating the token metadata...' });
       const form = new FormData();
       form.set('wallet', publicKey.toBase58());
       form.set('signature', signature);
-      form.set('name', name.trim());
-      form.set('symbol', symbol.trim().toUpperCase());
+      form.set('name', cleanName);
+      form.set('symbol', cleanSymbol);
       if (imageFile) form.set('image', imageFile);
 
-      const res = await fetch('/api/change', { method: 'POST', body: form });
-      const data = await res.json();
+      let attempt = 0;
+      for (;;) {
+        const res = await fetch('/api/change', { method: 'POST', body: form });
+        const data = await res.json();
 
-      if (!res.ok) {
+        if (res.ok) {
+          setStatus({
+            kind: 'ok',
+            msg: `Done! The token is now ${data.name} ($${data.symbol}).`,
+            link: data.explorer,
+          });
+          setName('');
+          setSymbol('');
+          setImageFile(null);
+          if (imagePreview) URL.revokeObjectURL(imagePreview);
+          setImagePreview(null);
+          onChanged();
+          loadBalance();
+          break;
+        }
+
+        // 429 with retryAfter = temporary (cooldown or another change in
+        // flight). Keep retrying up to ~13 min of total burn-tx validity.
+        if (res.status === 429 && typeof data.retryAfter === 'number' && attempt < 15) {
+          attempt++;
+          const wait = Math.min(Math.max(data.retryAfter, 2), 150);
+          setStatus({
+            kind: 'info',
+            msg: `${data.error} Your burn is safe — submitting again automatically in ${wait}s. Keep this page open.`,
+          });
+          await new Promise((r) => setTimeout(r, wait * 1000));
+          continue;
+        }
+
         setStatus({ kind: 'err', msg: data.error || 'Failed to update the metadata.' });
-        return;
+        break;
       }
-
-      setStatus({
-        kind: 'ok',
-        msg: `Done! The token is now ${data.name} ($${data.symbol}).`,
-        link: data.explorer,
-      });
-      setName('');
-      setSymbol('');
-      setImageFile(null);
-      if (imagePreview) URL.revokeObjectURL(imagePreview);
-      setImagePreview(null);
-      onChanged();
-      loadBalance();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unexpected error.';
       setStatus({ kind: 'err', msg });
@@ -195,12 +221,12 @@ export default function ChangeForm({ state, onChanged }: Props) {
             <input
               id="name"
               type="text"
-              maxLength={32}
-              placeholder="e.g. Supreme Chameleon"
+              maxLength={15}
+              placeholder="e.g. King Chameleon"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value.replace(/[^A-Za-z0-9 ]/g, ''))}
             />
-            <div className="hint">Up to 32 characters.</div>
+            <div className="hint">Up to 15 characters, letters and numbers only.</div>
           </div>
 
           <div className="field">
@@ -209,11 +235,11 @@ export default function ChangeForm({ state, onChanged }: Props) {
               id="symbol"
               type="text"
               maxLength={10}
-              placeholder="e.g. CHAM"
+              placeholder="e.g. Cham"
               value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+              onChange={(e) => setSymbol(e.target.value.replace(/[^A-Za-z0-9]/g, ''))}
             />
-            <div className="hint">Up to 10 characters, letters and numbers only.</div>
+            <div className="hint">Up to 10 characters, letters and numbers only. Case-sensitive.</div>
           </div>
 
           <div className="field">

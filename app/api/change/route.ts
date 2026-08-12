@@ -9,7 +9,9 @@ import {
   MAX_NAME_LENGTH,
   MAX_SYMBOL_LENGTH,
   MINT_ADDRESS,
+  NAME_REGEX,
   SITE_URL,
+  SYMBOL_REGEX,
   X_URL,
 } from '@/lib/config';
 
@@ -25,7 +27,10 @@ export async function POST(request: Request) {
 
   // Prevents two changes from being processed at the same time
   if (!(await acquireLock())) {
-    return NextResponse.json({ error: 'Another change is being processed. Try again in a moment.' }, { status: 429 });
+    return NextResponse.json(
+      { error: 'Another change is being processed.', retryAfter: 5 },
+      { status: 429 },
+    );
   }
 
   try {
@@ -33,17 +38,20 @@ export async function POST(request: Request) {
     const wallet = String(form.get('wallet') || '').trim();
     const signature = String(form.get('signature') || '').trim();
     const name = String(form.get('name') || '').trim();
-    const symbol = String(form.get('symbol') || '').trim().toUpperCase();
+    const symbol = String(form.get('symbol') || '').trim();
     const image = form.get('image');
 
     // --- Basic validation ---
     if (!wallet || !signature) {
       return NextResponse.json({ error: 'Wallet and burn signature are required.' }, { status: 400 });
     }
-    if (!name || name.length > MAX_NAME_LENGTH) {
-      return NextResponse.json({ error: `Invalid name (1 to ${MAX_NAME_LENGTH} characters).` }, { status: 400 });
+    if (!name || name.length > MAX_NAME_LENGTH || !NAME_REGEX.test(name)) {
+      return NextResponse.json(
+        { error: `Invalid name (1 to ${MAX_NAME_LENGTH} characters, letters and numbers only).` },
+        { status: 400 },
+      );
     }
-    if (!symbol || symbol.length > MAX_SYMBOL_LENGTH || !/^[A-Z0-9]+$/.test(symbol)) {
+    if (!symbol || symbol.length > MAX_SYMBOL_LENGTH || !SYMBOL_REGEX.test(symbol)) {
       return NextResponse.json(
         { error: `Invalid ticker (1 to ${MAX_SYMBOL_LENGTH} characters, letters and numbers only).` },
         { status: 400 },
@@ -69,7 +77,7 @@ export async function POST(request: Request) {
     const remaining = state.lastChangeTs > 0 ? COOLDOWN_SECONDS - (now - state.lastChangeTs) : 0;
     if (remaining > 0) {
       return NextResponse.json(
-        { error: `Cooldown active. Wait ${remaining}s for the next change.` },
+        { error: `Cooldown active. Wait ${remaining}s for the next change.`, retryAfter: remaining },
         { status: 429 },
       );
     }

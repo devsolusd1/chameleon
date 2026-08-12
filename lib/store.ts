@@ -113,7 +113,8 @@ let memLock = false;
 
 export async function acquireLock(): Promise<boolean> {
   if (redis) {
-    const ok = await redis.set(LOCK_KEY, '1', { nx: true, ex: 60 });
+    // TTL covers slow on-chain confirmations; auto-expires if a change crashes
+    const ok = await redis.set(LOCK_KEY, '1', { nx: true, ex: 120 });
     return ok === 'OK';
   }
   if (memLock) return false;
