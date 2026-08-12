@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { Redis } from '@upstash/redis';
+import { MINT_ADDRESS } from './config';
 
 /**
  * State storage.
@@ -22,11 +23,14 @@ function createRedis(): Redis | null {
 }
 const redis = createRedis();
 
-const STATE_KEY = 'chameleon:state';
-const LOCK_KEY = 'chameleon:lock';
+// State is namespaced by mint: switching to a new token (new
+// NEXT_PUBLIC_MINT_ADDRESS) automatically starts with a clean slate.
+const NS = MINT_ADDRESS || 'default';
+const STATE_KEY = `chameleon:state:${NS}`;
+const LOCK_KEY = `chameleon:lock:${NS}`;
 
 const DATA_DIR = path.join(process.cwd(), 'data');
-const STATE_FILE = path.join(DATA_DIR, 'state.json');
+const STATE_FILE = path.join(DATA_DIR, `state.${NS}.json`);
 
 export interface ChangeRecord {
   name: string;
