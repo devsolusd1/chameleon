@@ -40,6 +40,12 @@ export interface BurnedStats {
   burnedValueUsd: number | null;
 }
 
+// DexScreener chart points at the DAMM v2 pool (override via env when the
+// mint/pool changes)
+const DEX_PAIR =
+  process.env.NEXT_PUBLIC_DEX_PAIR || 'DrrzhfxDQd6L6iPAyKwNUSkixTTtGn9w3EgBPxUUpYHz';
+const CHART_URL = `https://dexscreener.com/solana/${DEX_PAIR}`;
+
 function fmtTokens(n: number) {
   return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
@@ -256,18 +262,13 @@ export default function Home() {
                   </button>
                   <a
                     className="btn-small"
-                    href={`https://jup.ag/swap/SOL-${state.mint}`}
+                    href={`https://jup.ag/swap?sell=So11111111111111111111111111111111111111112&buy=${state.mint}`}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Swap
+                    Buy on JUP
                   </a>
-                  <a
-                    className="btn-small"
-                    href={`https://dexscreener.com/solana/${state.mint}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
+                  <a className="btn-small" href={CHART_URL} target="_blank" rel="noreferrer">
                     Chart
                   </a>
                 </div>
@@ -570,11 +571,7 @@ export default function Home() {
                 >
                   Buy on FOMO
                 </a>
-                <a
-                  href={`https://dexscreener.com/solana/${state.mint}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={CHART_URL} target="_blank" rel="noreferrer">
                   Chart
                 </a>
                 <a
