@@ -118,6 +118,35 @@ body {
   margin: 8px auto 0;
 }
 
+.hero-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.btn-small {
+  display: inline-flex;
+  align-items: center;
+  background: var(--white);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-small:hover {
+  border-color: var(--green);
+  color: var(--green-dark);
+}
+
 .mint-line {
   margin-top: 16px;
   font-size: 0.8rem;
@@ -364,6 +393,88 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px 14px;
+}
+
+/* Hall of Skins */
+.section-intro {
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  margin: -8px 0 18px;
+}
+
+.skins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.skin-card {
+  position: relative;
+  border: 2px solid var(--green-light);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  background: var(--white);
+  transition: transform 0.15s, border-color 0.15s;
+}
+
+.skin-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--green);
+}
+
+.skin-card.current {
+  border-color: var(--green);
+  background: var(--green-pale);
+}
+
+.skin-badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--green);
+  color: var(--white);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.skin-img {
+  width: 96px;
+  height: 96px;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  background: var(--white);
+}
+
+.skin-name {
+  font-weight: 700;
+  margin-top: 10px;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skin-ticker {
+  color: var(--green-dark);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.skin-meta {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--text-soft);
+}
+
+.skin-meta a {
+  color: var(--green-dark);
 }
 
 /* History */

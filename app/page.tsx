@@ -17,6 +17,7 @@ export interface SiteState {
     wallet: string;
     signature: string;
     updateSignature?: string;
+    imageUrl?: string | null;
     ts: number;
   }[];
 }
@@ -42,10 +43,30 @@ function fmtUsd(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 }
 
+function timeAgo(ts: number) {
+  const s = Math.max(1, Math.floor(Date.now() / 1000 - ts));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
 export default function Home() {
   const [state, setState] = useState<SiteState | null>(null);
   const [burnedStats, setBurnedStats] = useState<BurnedStats | null>(null);
   const [imageBust, setImageBust] = useState(0);
+  const [copied, setCopied] = useState(false);
+
+  const copyCA = useCallback(async () => {
+    if (!state?.mint) return;
+    try {
+      await navigator.clipboard.writeText(state.mint);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard unavailable; the mint link below still shows the address
+    }
+  }, [state?.mint]);
 
   const refresh = useCallback(async () => {
     try {
@@ -124,16 +145,39 @@ export default function Home() {
               this website never changes.
             </p>
             {state?.mint ? (
-              <p className="mint-line">
-                Mint:{' '}
-                <a
-                  href={`https://solscan.io/token/${state.mint}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {state.mint}
-                </a>
-              </p>
+              <>
+                <div className="hero-actions">
+                  <button className="btn-small" onClick={copyCA}>
+                    {copied ? 'Copied' : 'Copy CA'}
+                  </button>
+                  <a
+                    className="btn-small"
+                    href={`https://jup.ag/swap/SOL-${state.mint}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Buy
+                  </a>
+                  <a
+                    className="btn-small"
+                    href={`https://dexscreener.com/solana/${state.mint}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Chart
+                  </a>
+                </div>
+                <p className="mint-line">
+                  Mint:{' '}
+                  <a
+                    href={`https://solscan.io/token/${state.mint}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {state.mint}
+                  </a>
+                </p>
+              </>
             ) : (
               <p className="mint-line">Token not launched yet — coming soon.</p>
             )}
@@ -144,7 +188,7 @@ export default function Home() {
           <section className="stats-band">
             <div className="container stats-row">
               <div className="stat">
-                <div className="stat-label">🔥 Burned so far</div>
+                <div className="stat-label">Burned so far</div>
                 <div className="stat-value">{fmtTokens(burnedStats.burned)}</div>
                 <div className="stat-sub">
                   {burnedStats.burnedPercent.toFixed(3)}% of the supply — destroyed
@@ -152,7 +196,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="stat">
-                <div className="stat-label">💵 Estimated value</div>
+                <div className="stat-label">Estimated value</div>
                 <div className="stat-value">
                   {burnedStats.burnedValueUsd !== null ? fmtUsd(burnedStats.burnedValueUsd) : '—'}
                 </div>
@@ -163,7 +207,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="stat">
-                <div className="stat-label">🦎 Circulating supply</div>
+                <div className="stat-label">Circulating supply</div>
                 <div className="stat-value">{fmtTokens(burnedStats.currentSupply)}</div>
                 <div className="stat-sub">
                   out of {fmtTokens(burnedStats.initialSupply)} minted
@@ -212,13 +256,51 @@ export default function Home() {
             <h2>Change the token</h2>
             <ChangeForm state={state} onChanged={onChanged} />
             <p className="section-note">
-              ⏳ Changes are instant on-chain, but trading terminals and wallets
+              Changes are instant on-chain, but trading terminals and wallets
               (Axiom, GMGN, Dexscreener, Phantom, etc.) cache token metadata and
               may take several minutes — sometimes longer — to show the new
               name, ticker and image.
             </p>
           </div>
         </section>
+
+        {state && state.history.length > 0 && (
+          <section className="section">
+            <div className="container">
+              <h2>Hall of Skins</h2>
+              <p className="section-intro">
+                Every identity this coin has ever worn — each one paid for with a burn.
+              </p>
+              <div className="skins-grid">
+                {/* API already returns newest first */}
+                {state.history.map((h, i) => (
+                  <div className={`skin-card${i === 0 ? ' current' : ''}`} key={h.signature}>
+                    {i === 0 && <div className="skin-badge">CURRENT SKIN</div>}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      className="skin-img"
+                      src={h.imageUrl || '/logo.png'}
+                      alt={`${h.name} token image`}
+                      loading="lazy"
+                    />
+                    <div className="skin-name">{h.name}</div>
+                    <div className="skin-ticker">${h.symbol}</div>
+                    <div className="skin-meta">
+                      {timeAgo(h.ts)} · by{' '}
+                      <a
+                        href={`https://solscan.io/account/${h.wallet}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {shortAddr(h.wallet)}
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="section">
           <div className="container">
@@ -256,7 +338,7 @@ export default function Home() {
                           rel="noreferrer"
                           title="Burn transaction"
                         >
-                          🔥 burn
+                          burn
                         </a>
                         {h.updateSignature && (
                           <>
@@ -267,7 +349,7 @@ export default function Home() {
                               rel="noreferrer"
                               title="Metadata update transaction"
                             >
-                              🦎 update
+                              update
                             </a>
                           </>
                         )}

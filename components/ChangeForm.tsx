@@ -216,7 +216,7 @@ export default function ChangeForm({ state, onChanged }: Props) {
         <div className="status info">The token has not launched yet. Check back soon!</div>
       ) : inCooldown ? (
         <div className="cooldown-wait">
-          <div className="cooldown-label">🕒 Cooldown active</div>
+          <div className="cooldown-label">Cooldown active</div>
           <div className="cooldown-time">
             {Math.floor(cooldown / 60)}:{String(cooldown % 60).padStart(2, '0')}
           </div>
@@ -289,7 +289,7 @@ export default function ChangeForm({ state, onChanged }: Props) {
               >
                 {busy
                   ? 'Processing...'
-                  : `🔥 Burn ${burnTokensFmt} tokens and change the token`}
+                  : `Burn ${burnTokensFmt} tokens and change the token`}
               </button>
             ) : (
               <span className="hint">

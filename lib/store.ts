@@ -40,6 +40,8 @@ export interface ChangeRecord {
   signature: string;
   /** metadata update transaction signature */
   updateSignature?: string;
+  /** image the token wore during this change (IPFS/gateway URL) */
+  imageUrl?: string | null;
   ts: number;
 }
 
