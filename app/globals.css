@@ -214,6 +214,24 @@ a {
   box-shadow: var(--ring);
 }
 
+/* Buy on FOMO — branded */
+.btn-fomo {
+  background: #060510;
+  color: var(--white);
+  border-color: #060510;
+  gap: 8px;
+}
+
+.btn-fomo img {
+  border-radius: 5px;
+}
+
+.btn-fomo:hover {
+  color: var(--white);
+  border-color: #060510;
+  filter: brightness(1.4);
+}
+
 .mint-line {
   margin-top: 18px;
   font-size: 0.78rem;

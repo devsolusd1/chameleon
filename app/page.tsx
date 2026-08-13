@@ -194,6 +194,15 @@ export default function Home() {
             {state?.mint ? (
               <>
                 <div className="hero-actions">
+                  <a
+                    className="btn-small btn-fomo"
+                    href={`https://fomo.family/tokens/solana/${state.mint}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Image src="/fomo.svg" alt="FOMO" width={18} height={18} />
+                    Buy on FOMO
+                  </a>
                   <button className="btn-small" onClick={copyCA}>
                     {copied ? 'Copied' : 'Copy CA'}
                   </button>
@@ -203,7 +212,7 @@ export default function Home() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Buy
+                    Swap
                   </a>
                   <a
                     className="btn-small"
