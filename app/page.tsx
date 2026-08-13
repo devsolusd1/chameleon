@@ -24,6 +24,12 @@ export interface SiteState {
   history: SkinRecord[];
 }
 
+export interface TopBurner {
+  wallet: string;
+  tokens: number;
+  changes: number;
+}
+
 export interface BurnedStats {
   initialSupply: number;
   currentSupply: number;
@@ -45,6 +51,7 @@ export default function Home() {
   const [state, setState] = useState<SiteState | null>(null);
   const [burnedStats, setBurnedStats] = useState<BurnedStats | null>(null);
   const [skinPerfs, setSkinPerfs] = useState<Record<string, number | null>>({});
+  const [topBurners, setTopBurners] = useState<TopBurner[]>([]);
   const [imageBust, setImageBust] = useState(0);
   const [copied, setCopied] = useState(false);
   const [newSkin, setNewSkin] = useState<{ name: string; symbol: string } | null>(null);
@@ -109,6 +116,23 @@ export default function Home() {
     };
     loadBurned();
     const id = setInterval(loadBurned, 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const loadBurners = async () => {
+      try {
+        const res = await fetch('/api/burners', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setTopBurners(data.top ?? []);
+        }
+      } catch {
+        // keep the previous ranking; retry on next tick
+      }
+    };
+    loadBurners();
+    const id = setInterval(loadBurners, 60000);
     return () => clearInterval(id);
   }, []);
 
@@ -373,6 +397,38 @@ export default function Home() {
               </div>
             </section>
           )
+        )}
+
+        {topBurners.length > 0 && topBurners[0].tokens > 0 && (
+          <section className="section">
+            <div className="container">
+              <h2>Top burners</h2>
+              <p className="section-intro">
+                The wallets that have destroyed the most tokens to change the
+                chameleon&apos;s skin.
+              </p>
+              <div className="burners-grid">
+                {topBurners.map((b, i) => (
+                  <div className={`burner-card${i === 0 ? ' first' : ''}`} key={b.wallet}>
+                    <div className="burner-rank">#{i + 1}</div>
+                    <div className="burner-tokens">{fmtTokens(b.tokens)}</div>
+                    <div className="burner-sub">
+                      tokens burned across {b.changes}{' '}
+                      {b.changes === 1 ? 'change' : 'changes'}
+                    </div>
+                    <a
+                      className="burner-wallet"
+                      href={`https://solscan.io/account/${b.wallet}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {shortAddr(b.wallet)}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
         )}
 
         {state && state.history.length > 0 && (

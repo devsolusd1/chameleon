@@ -42,6 +42,8 @@ export interface ChangeRecord {
   updateSignature?: string;
   /** image the token wore during this change (IPFS/gateway URL) */
   imageUrl?: string | null;
+  /** tokens burned in this change (UI units), backfilled from the burn tx */
+  burnedTokens?: number | null;
   ts: number;
 }
 
