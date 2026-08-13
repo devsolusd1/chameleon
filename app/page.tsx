@@ -43,6 +43,20 @@ function fmtUsd(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 }
 
+function PerfBadge({ perf }: { perf: number | null | undefined }) {
+  if (perf === null || perf === undefined) return null;
+  const up = perf >= 0;
+  return (
+    <span
+      className={`perf ${up ? 'up' : 'down'}`}
+      title="Token price change while this skin was active (from the moment it took over until it was replaced — or until now, for the current skin)"
+    >
+      {up ? '+' : '−'}
+      {Math.abs(perf).toFixed(1)}%
+    </span>
+  );
+}
+
 function timeAgo(ts: number) {
   const s = Math.max(1, Math.floor(Date.now() / 1000 - ts));
   if (s < 60) return `${s}s ago`;
@@ -65,6 +79,7 @@ export default function Home() {
   const [imageBust, setImageBust] = useState(0);
   const [copied, setCopied] = useState(false);
   const [newSkin, setNewSkin] = useState<{ name: string; symbol: string } | null>(null);
+  const [skinPerfs, setSkinPerfs] = useState<Record<string, number | null>>({});
   const [nowTs, setNowTs] = useState(() => Math.floor(Date.now() / 1000));
   const prevSigRef = useRef<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,6 +143,23 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const loadPerfs = async () => {
+      try {
+        const res = await fetch('/api/skins', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setSkinPerfs(data.perfs ?? {});
+        }
+      } catch {
+        // keep the previous values; retry on next tick
+      }
+    };
+    loadPerfs();
+    const id = setInterval(loadPerfs, 60000);
+    return () => clearInterval(id);
+  }, []);
+
   const onChanged = useCallback(() => {
     refresh();
     setImageBust((n) => n + 1);
@@ -177,6 +209,7 @@ export default function Home() {
               <div className="skin-age">
                 this skin has been alive for{' '}
                 <strong>{fmtDuration(nowTs - state.history[0].ts)}</strong>
+                <PerfBadge perf={skinPerfs[state.history[0].signature]} />
               </div>
             )}
             <p className="tagline">
@@ -310,7 +343,11 @@ export default function Home() {
             <div className="container">
               <h2>Hall of Skins</h2>
               <p className="section-intro">
-                Every identity this coin has ever worn — each one paid for with a burn.
+                Every identity this coin has ever worn — each one paid for with a
+                burn. The percentage next to each ticker is how much the token&apos;s
+                price moved while that skin was active: from the moment it took
+                over until it was replaced (the current skin counts up to right
+                now). Green skins pumped, red skins dumped.
               </p>
               <div className="skins-grid">
                 {/* API already returns newest first */}
@@ -325,7 +362,9 @@ export default function Home() {
                       loading="lazy"
                     />
                     <div className="skin-name">{h.name}</div>
-                    <div className="skin-ticker">${h.symbol}</div>
+                    <div className="skin-ticker">
+                      ${h.symbol} <PerfBadge perf={skinPerfs[h.signature]} />
+                    </div>
                     <div className="skin-meta">
                       {timeAgo(h.ts)} · by{' '}
                       <a

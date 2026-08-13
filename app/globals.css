@@ -123,6 +123,21 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Skin price performance badge */
+.perf {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-left: 6px;
+}
+
+.perf.up {
+  color: var(--green-dark);
+}
+
+.perf.down {
+  color: var(--red);
+}
+
 .hero p.tagline {
   color: var(--text-soft);
   max-width: 560px;
