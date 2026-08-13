@@ -1,7 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import ChangeForm from '@/components/ChangeForm';
+import {
+  fmtDuration,
+  PerfBadge,
+  shortAddr,
+  SkinCard,
+  SkinModal,
+  type SkinRecord,
+} from '@/components/skins';
 
 export interface SiteState {
   name: string;
@@ -11,19 +21,7 @@ export interface SiteState {
   burnAmount: number;
   cooldownSeconds: number;
   cooldownRemaining: number;
-  history: {
-    name: string;
-    symbol: string;
-    wallet: string;
-    signature: string;
-    updateSignature?: string;
-    imageUrl?: string | null;
-    ts: number;
-  }[];
-}
-
-function shortAddr(addr: string) {
-  return addr.length > 12 ? `${addr.slice(0, 4)}...${addr.slice(-4)}` : addr;
+  history: SkinRecord[];
 }
 
 export interface BurnedStats {
@@ -43,43 +41,14 @@ function fmtUsd(n: number) {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
 }
 
-function PerfBadge({ perf }: { perf: number | null | undefined }) {
-  if (perf === null || perf === undefined) return null;
-  const up = perf >= 0;
-  return (
-    <span
-      className={`perf ${up ? 'up' : 'down'}`}
-      title="Token price change while this skin was active (from the moment it took over until it was replaced — or until now, for the current skin)"
-    >
-      {up ? '+' : '−'}
-      {Math.abs(perf).toFixed(1)}%
-    </span>
-  );
-}
-
-function timeAgo(ts: number) {
-  const s = Math.max(1, Math.floor(Date.now() / 1000 - ts));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
-function fmtDuration(total: number) {
-  const s = Math.max(0, total);
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
-  return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
-}
-
 export default function Home() {
   const [state, setState] = useState<SiteState | null>(null);
   const [burnedStats, setBurnedStats] = useState<BurnedStats | null>(null);
+  const [skinPerfs, setSkinPerfs] = useState<Record<string, number | null>>({});
   const [imageBust, setImageBust] = useState(0);
   const [copied, setCopied] = useState(false);
   const [newSkin, setNewSkin] = useState<{ name: string; symbol: string } | null>(null);
-  const [skinPerfs, setSkinPerfs] = useState<Record<string, number | null>>({});
+  const [selectedSkin, setSelectedSkin] = useState<SkinRecord | null>(null);
   const [nowTs, setNowTs] = useState(() => Math.floor(Date.now() / 1000));
   const prevSigRef = useRef<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,21 +129,25 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  const onChanged = useCallback(() => {
-    refresh();
-    setImageBust((n) => n + 1);
-  }, [refresh]);
-
   const burnFmt = (state?.burnAmount ?? 1000000).toLocaleString('en-US');
   const cooldownMin = Math.round((state?.cooldownSeconds ?? 120) / 60);
+
+  // End of each skin's reign: the next change, or now for the current one
+  const skinEndTs = useCallback(
+    (skin: SkinRecord) => {
+      if (!state) return nowTs;
+      const i = state.history.findIndex((h) => h.signature === skin.signature);
+      return i <= 0 ? nowTs : state.history[i - 1].ts;
+    },
+    [state, nowTs],
+  );
 
   return (
     <>
       <header className="header">
         <div className="container header-inner">
           <div className="logo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="Chameleon logo" />
+            <Image src="/logo.png" alt="Chameleon logo" width={38} height={38} />
             <span>
               {state?.name ?? 'Chameleon'}{' '}
               {state?.symbol ? `($${state.symbol})` : ''}
@@ -253,42 +226,54 @@ export default function Home() {
                 </p>
               </>
             ) : (
-              <p className="mint-line">Token not launched yet — coming soon.</p>
+              <p className="mint-line">
+                {state === null ? '' : 'Token not launched yet — coming soon.'}
+              </p>
             )}
           </div>
         </section>
 
-        {burnedStats && burnedStats.burned > 0 && (
+        {burnedStats === null ? (
           <section className="stats-band">
             <div className="container stats-row">
-              <div className="stat">
-                <div className="stat-label">Burned so far</div>
-                <div className="stat-value">{fmtTokens(burnedStats.burned)}</div>
-                <div className="stat-sub">
-                  {burnedStats.burnedPercent.toFixed(3)}% of the supply — destroyed
-                  forever, one change at a time
-                </div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Estimated value</div>
-                <div className="stat-value">
-                  {burnedStats.burnedValueUsd !== null ? fmtUsd(burnedStats.burnedValueUsd) : '—'}
-                </div>
-                <div className="stat-sub">
-                  {burnedStats.priceUsd !== null
-                    ? `at current price ($${burnedStats.priceUsd.toLocaleString('en-US', { maximumSignificantDigits: 4 })})`
-                    : 'price unavailable'}
-                </div>
-              </div>
-              <div className="stat">
-                <div className="stat-label">Circulating supply</div>
-                <div className="stat-value">{fmtTokens(burnedStats.currentSupply)}</div>
-                <div className="stat-sub">
-                  out of {fmtTokens(burnedStats.initialSupply)} minted
-                </div>
-              </div>
+              <div className="skeleton skeleton-stat" />
+              <div className="skeleton skeleton-stat" />
+              <div className="skeleton skeleton-stat" />
             </div>
           </section>
+        ) : (
+          burnedStats.burned > 0 && (
+            <section className="stats-band">
+              <div className="container stats-row">
+                <div className="stat">
+                  <div className="stat-label">Burned so far</div>
+                  <div className="stat-value">{fmtTokens(burnedStats.burned)}</div>
+                  <div className="stat-sub">
+                    {burnedStats.burnedPercent.toFixed(3)}% of the supply — destroyed
+                    forever, one change at a time
+                  </div>
+                </div>
+                <div className="stat">
+                  <div className="stat-label">Estimated value</div>
+                  <div className="stat-value">
+                    {burnedStats.burnedValueUsd !== null ? fmtUsd(burnedStats.burnedValueUsd) : '—'}
+                  </div>
+                  <div className="stat-sub">
+                    {burnedStats.priceUsd !== null
+                      ? `at current price ($${burnedStats.priceUsd.toLocaleString('en-US', { maximumSignificantDigits: 4 })})`
+                      : 'price unavailable'}
+                  </div>
+                </div>
+                <div className="stat">
+                  <div className="stat-label">Circulating supply</div>
+                  <div className="stat-value">{fmtTokens(burnedStats.currentSupply)}</div>
+                  <div className="stat-sub">
+                    out of {fmtTokens(burnedStats.initialSupply)} minted
+                  </div>
+                </div>
+              </div>
+            </section>
+          )
         )}
 
         <section className="section">
@@ -328,7 +313,7 @@ export default function Home() {
         <section className="section" id="change">
           <div className="container">
             <h2>Change the token</h2>
-            <ChangeForm state={state} onChanged={onChanged} />
+            <ChangeForm state={state} onChanged={refresh} />
             <p className="section-note">
               Changes are instant on-chain, but trading terminals and wallets
               (Axiom, GMGN, Dexscreener, Phantom, etc.) cache token metadata and
@@ -338,54 +323,53 @@ export default function Home() {
           </div>
         </section>
 
-        {state && state.history.length > 0 && (
+        {state === null ? (
           <section className="section">
             <div className="container">
               <h2>Hall of Skins</h2>
-              <p className="section-intro">
-                Every identity this coin has ever worn — each one paid for with a
-                burn. The percentage next to each ticker is how much the token&apos;s
-                price moved while that skin was active: from the moment it took
-                over until it was replaced (the current skin counts up to right
-                now). Green skins pumped, red skins dumped.
-              </p>
               <div className="skins-grid">
-                {/* API already returns newest first */}
-                {state.history.map((h, i) => (
-                  <div className={`skin-card${i === 0 ? ' current' : ''}`} key={h.signature}>
-                    {i === 0 && <div className="skin-badge">CURRENT SKIN</div>}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      className="skin-img"
-                      src={h.imageUrl || '/logo.png'}
-                      alt={`${h.name} token image`}
-                      loading="lazy"
-                    />
-                    <div className="skin-name">{h.name}</div>
-                    <div className="skin-ticker">
-                      ${h.symbol} <PerfBadge perf={skinPerfs[h.signature]} />
-                    </div>
-                    <div className="skin-meta">
-                      {timeAgo(h.ts)} · by{' '}
-                      <a
-                        href={`https://solscan.io/account/${h.wallet}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {shortAddr(h.wallet)}
-                      </a>
-                    </div>
-                  </div>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <div className="skeleton skeleton-card" key={i} />
                 ))}
               </div>
             </div>
           </section>
+        ) : (
+          state.history.length > 0 && (
+            <section className="section">
+              <div className="container">
+                <h2>Hall of Skins</h2>
+                <p className="section-intro">
+                  Every identity this coin has ever worn — each one paid for with a
+                  burn. The percentage next to each ticker is how much the token&apos;s
+                  price moved while that skin was active: from the moment it took
+                  over until it was replaced (the current skin counts up to right
+                  now). Green skins pumped, red skins dumped.
+                </p>
+                <div className="skins-grid">
+                  {/* API already returns newest first */}
+                  {state.history.map((h, i) => (
+                    <SkinCard
+                      key={h.signature}
+                      skin={h}
+                      current={i === 0}
+                      perf={skinPerfs[h.signature]}
+                      onClick={() => setSelectedSkin(h)}
+                    />
+                  ))}
+                </div>
+                <p className="archive-link">
+                  <Link href="/skins">View the full skin archive →</Link>
+                </p>
+              </div>
+            </section>
+          )
         )}
 
-        <section className="section">
-          <div className="container">
-            <h2>Latest changes</h2>
-            {state && state.history.length > 0 ? (
+        {state && state.history.length > 0 && (
+          <section className="section">
+            <div className="container">
+              <h2>Latest changes</h2>
               <table className="history-table">
                 <thead>
                   <tr>
@@ -438,14 +422,19 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
-            ) : (
-              <p style={{ color: 'var(--text-soft)' }}>
-                No changes yet. Be the first to change the chameleon&apos;s skin.
-              </p>
-            )}
-          </div>
-        </section>
+            </div>
+          </section>
+        )}
       </main>
+
+      {selectedSkin && (
+        <SkinModal
+          skin={selectedSkin}
+          perf={skinPerfs[selectedSkin.signature]}
+          endTs={skinEndTs(selectedSkin)}
+          onClose={() => setSelectedSkin(null)}
+        />
+      )}
 
       {newSkin && (
         <div className="toast">

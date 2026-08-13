@@ -26,7 +26,7 @@ type Props = {
 type Status =
   | { kind: 'idle' }
   | { kind: 'info'; msg: string }
-  | { kind: 'ok'; msg: string; link?: string }
+  | { kind: 'ok'; msg: string; link?: string; shareText?: string }
   | { kind: 'err'; msg: string };
 
 export default function ChangeForm({ state, onChanged }: Props) {
@@ -172,6 +172,7 @@ export default function ChangeForm({ state, onChanged }: Props) {
             kind: 'ok',
             msg: `Done! The token is now ${data.name} ($${data.symbol}).`,
             link: data.explorer,
+            shareText: `I just burned ${burnTokensFmt} tokens to give the chameleon a new skin: ${data.name} ($${data.symbol}) 🦎`,
           });
           setName('');
           setSymbol('');
@@ -307,6 +308,18 @@ export default function ChangeForm({ state, onChanged }: Props) {
           {status.kind === 'ok' && status.link && (
             <a href={status.link} target="_blank" rel="noreferrer">
               View transaction
+            </a>
+          )}
+          {status.kind === 'ok' && status.shareText && (
+            <a
+              className="share-x"
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                `${status.shareText} ${window.location.origin}`,
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Share on X
             </a>
           )}
         </div>
