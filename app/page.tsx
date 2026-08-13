@@ -199,20 +199,6 @@ export default function Home() {
         <ScrollProgress />
       </header>
 
-      {state && state.history.length > 2 && (
-        <div className="marquee" aria-hidden="true">
-          <div className="marquee-track">
-            {[...state.history, ...state.history].map((h, i) => (
-              <span className="marquee-item" key={`${h.signature}-${i}`}>
-                <span className="marquee-dot" />
-                {h.name}
-                <em>${h.symbol}</em>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       <main>
         <section className="hero">
           <div className="aurora" aria-hidden="true">
