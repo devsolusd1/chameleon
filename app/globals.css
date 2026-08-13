@@ -129,6 +129,41 @@ body {
   color: var(--green-dark);
 }
 
+/* Burn stats band */
+.stats-band {
+  background: var(--green);
+  padding: 26px 0;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 18px;
+  text-align: center;
+}
+
+.stat-label {
+  color: var(--green-light);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  color: var(--white);
+  font-size: 1.9rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  margin: 4px 0 2px;
+}
+
+.stat-sub {
+  color: var(--green-light);
+  font-size: 0.8rem;
+}
+
 /* Sections */
 .section {
   padding: 40px 0;

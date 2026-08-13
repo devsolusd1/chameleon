@@ -25,8 +25,26 @@ function shortAddr(addr: string) {
   return addr.length > 12 ? `${addr.slice(0, 4)}...${addr.slice(-4)}` : addr;
 }
 
+export interface BurnedStats {
+  initialSupply: number;
+  currentSupply: number;
+  burned: number;
+  burnedPercent: number;
+  priceUsd: number | null;
+  burnedValueUsd: number | null;
+}
+
+function fmtTokens(n: number) {
+  return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+function fmtUsd(n: number) {
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+}
+
 export default function Home() {
   const [state, setState] = useState<SiteState | null>(null);
+  const [burnedStats, setBurnedStats] = useState<BurnedStats | null>(null);
   const [imageBust, setImageBust] = useState(0);
 
   const refresh = useCallback(async () => {
@@ -43,6 +61,20 @@ export default function Home() {
     const id = setInterval(refresh, 10000);
     return () => clearInterval(id);
   }, [refresh]);
+
+  useEffect(() => {
+    const loadBurned = async () => {
+      try {
+        const res = await fetch('/api/burned', { cache: 'no-store' });
+        if (res.ok) setBurnedStats(await res.json());
+      } catch {
+        // keep the previous stats; retry on next tick
+      }
+    };
+    loadBurned();
+    const id = setInterval(loadBurned, 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const onChanged = useCallback(() => {
     refresh();
@@ -107,6 +139,39 @@ export default function Home() {
             )}
           </div>
         </section>
+
+        {burnedStats && burnedStats.burned > 0 && (
+          <section className="stats-band">
+            <div className="container stats-row">
+              <div className="stat">
+                <div className="stat-label">🔥 Burned so far</div>
+                <div className="stat-value">{fmtTokens(burnedStats.burned)}</div>
+                <div className="stat-sub">
+                  {burnedStats.burnedPercent.toFixed(3)}% of the supply — destroyed
+                  forever, one change at a time
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">💵 Estimated value</div>
+                <div className="stat-value">
+                  {burnedStats.burnedValueUsd !== null ? fmtUsd(burnedStats.burnedValueUsd) : '—'}
+                </div>
+                <div className="stat-sub">
+                  {burnedStats.priceUsd !== null
+                    ? `at current price ($${burnedStats.priceUsd.toLocaleString('en-US', { maximumSignificantDigits: 4 })})`
+                    : 'price unavailable'}
+                </div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">🦎 Circulating supply</div>
+                <div className="stat-value">{fmtTokens(burnedStats.currentSupply)}</div>
+                <div className="stat-sub">
+                  out of {fmtTokens(burnedStats.initialSupply)} minted
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="section">
           <div className="container">
