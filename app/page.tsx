@@ -409,13 +409,19 @@ export default function Home() {
               </p>
               <div className="burners-grid">
                 {topBurners.map((b, i) => (
-                  <div className={`burner-card${i === 0 ? ' first' : ''}`} key={b.wallet}>
-                    <div className="burner-rank">#{i + 1}</div>
+                  <div className={`burner-card rank-${i + 1}`} key={b.wallet}>
+                    {i === 0 && <div className="skin-badge">TOP BURNER</div>}
+                    <div className="burner-medal">{i + 1}</div>
                     <div className="burner-tokens">{fmtTokens(b.tokens)}</div>
                     <div className="burner-sub">
                       tokens burned across {b.changes}{' '}
                       {b.changes === 1 ? 'change' : 'changes'}
                     </div>
+                    {burnedStats?.priceUsd != null && (
+                      <div className="burner-usd">
+                        ≈ {fmtUsd(b.tokens * burnedStats.priceUsd)} at current price
+                      </div>
+                    )}
                     <a
                       className="burner-wallet"
                       href={`https://solscan.io/account/${b.wallet}`}

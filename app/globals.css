@@ -604,10 +604,10 @@ a {
   color: var(--green-dark);
 }
 
-/* Top burners */
+/* Top burners — podium */
 .burners-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
@@ -615,7 +615,7 @@ a {
   position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 22px;
+  padding: 24px 22px;
   text-align: center;
   background: var(--white);
   box-shadow: var(--shadow-soft);
@@ -628,38 +628,64 @@ a {
   box-shadow: var(--shadow-lift);
 }
 
-.burner-card.first {
+.burner-card.rank-1 {
   border-color: var(--green);
   background: linear-gradient(180deg, var(--green-pale) 0%, var(--white) 120%);
+  box-shadow: 0 8px 28px rgba(22, 163, 74, 0.18);
 }
 
-.burner-rank {
+.burner-medal {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   color: var(--white);
   font-weight: 800;
-  font-size: 0.92rem;
-  box-shadow: 0 3px 10px rgba(22, 163, 74, 0.28);
+  font-size: 1.05rem;
+  border: 3px solid var(--white);
+}
+
+.rank-1 .burner-medal {
+  background: linear-gradient(135deg, #fcd34d 0%, #d97706 100%);
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.45);
+}
+
+.rank-2 .burner-medal {
+  background: linear-gradient(135deg, #cbd5e1 0%, #64748b 100%);
+  box-shadow: 0 4px 14px rgba(100, 116, 139, 0.35);
+}
+
+.rank-3 .burner-medal {
+  background: linear-gradient(135deg, #d8956a 0%, #92400e 100%);
+  box-shadow: 0 4px 14px rgba(146, 64, 14, 0.35);
 }
 
 .burner-tokens {
-  font-size: 1.7rem;
+  font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  margin-top: 10px;
+  margin-top: 12px;
   color: var(--text);
+}
+
+.rank-1 .burner-tokens {
+  font-size: 2.1rem;
 }
 
 .burner-sub {
   font-size: 0.8rem;
   color: var(--text-soft);
+}
+
+.burner-usd {
+  margin-top: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--green-dark);
+  font-variant-numeric: tabular-nums;
 }
 
 .burner-wallet {
@@ -668,6 +694,37 @@ a {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8rem;
   color: var(--green-dark);
+}
+
+/* Desktop: classic podium — silver, GOLD raised in the middle, bronze */
+@media (min-width: 640px) {
+  .burners-grid {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
+  .burner-card {
+    flex: 1;
+  }
+
+  .burner-card.rank-1 {
+    order: 2;
+    padding-top: 34px;
+    padding-bottom: 34px;
+    transform: scale(1.04);
+  }
+
+  .burner-card.rank-1:hover {
+    transform: scale(1.04) translateY(-2px);
+  }
+
+  .burner-card.rank-2 {
+    order: 1;
+  }
+
+  .burner-card.rank-3 {
+    order: 3;
+  }
 }
 
 /* History */
