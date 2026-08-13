@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ChangeForm from '@/components/ChangeForm';
 
 export interface SiteState {
@@ -51,11 +51,29 @@ function timeAgo(ts: number) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+function fmtDuration(total: number) {
+  const s = Math.max(0, total);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
+}
+
 export default function Home() {
   const [state, setState] = useState<SiteState | null>(null);
   const [burnedStats, setBurnedStats] = useState<BurnedStats | null>(null);
   const [imageBust, setImageBust] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [newSkin, setNewSkin] = useState<{ name: string; symbol: string } | null>(null);
+  const [nowTs, setNowTs] = useState(() => Math.floor(Date.now() / 1000));
+  const prevSigRef = useRef<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ticks the live "skin age" counter
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const copyCA = useCallback(async () => {
     if (!state?.mint) return;
@@ -71,7 +89,20 @@ export default function Home() {
   const refresh = useCallback(async () => {
     try {
       const res = await fetch('/api/state', { cache: 'no-store' });
-      if (res.ok) setState(await res.json());
+      if (!res.ok) return;
+      const data: SiteState = await res.json();
+      setState(data);
+
+      // Live skin-shed moment: the newest history entry changed while
+      // this visitor had the page open
+      const latest = data.history[0]?.signature ?? null;
+      if (prevSigRef.current !== null && latest && latest !== prevSigRef.current) {
+        setImageBust((n) => n + 1);
+        setNewSkin({ name: data.name, symbol: data.symbol });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setNewSkin(null), 6000);
+      }
+      prevSigRef.current = latest;
     } catch {
       // server unreachable; retry on next tick
     }
@@ -135,9 +166,19 @@ export default function Home() {
         <section className="hero">
           <div className="container">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="token-image" src={`/api/image?v=${imageBust}`} alt="Current token image" />
+            <img
+              className={`token-image${newSkin ? ' shed' : ''}`}
+              src={`/api/image?v=${imageBust}`}
+              alt="Current token image"
+            />
             <h1>{state?.name ?? 'Chameleon'}</h1>
             <div className="ticker">${state?.symbol ?? 'CHMLN'}</div>
+            {state && state.history.length > 0 && (
+              <div className="skin-age">
+                this skin has been alive for{' '}
+                <strong>{fmtDuration(nowTs - state.history[0].ts)}</strong>
+              </div>
+            )}
             <p className="tagline">
               The coin that changes its skin. Any holder can burn{' '}
               <strong>{burnFmt} tokens (0.1% of the supply)</strong> to change
@@ -366,6 +407,12 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {newSkin && (
+        <div className="toast">
+          New skin — {newSkin.name} (${newSkin.symbol})
+        </div>
+      )}
 
       <footer className="footer">
         <div className="container">
