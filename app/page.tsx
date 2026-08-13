@@ -12,6 +12,7 @@ import {
   SkinModal,
   type SkinRecord,
 } from '@/components/skins';
+import { CountUp, Reveal, ScrollProgress } from '@/components/ui';
 
 export interface SiteState {
   name: string;
@@ -189,21 +190,44 @@ export default function Home() {
             </svg>
           </a>
         </div>
+        <ScrollProgress />
       </header>
+
+      {state && state.history.length > 2 && (
+        <div className="marquee" aria-hidden="true">
+          <div className="marquee-track">
+            {[...state.history, ...state.history].map((h, i) => (
+              <span className="marquee-item" key={`${h.signature}-${i}`}>
+                <span className="marquee-dot" />
+                {h.name}
+                <em>${h.symbol}</em>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <main>
         <section className="hero">
+          <div className="aurora" aria-hidden="true">
+            <span className="aurora-blob a1" />
+            <span className="aurora-blob a2" />
+            <span className="aurora-blob a3" />
+          </div>
           <div className="container">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={`token-image${newSkin ? ' shed' : ''}`}
-              src={`/api/image?v=${imageBust}`}
-              alt="Current token image"
-            />
+            <div className="token-frame">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={`token-image${newSkin ? ' shed' : ''}`}
+                src={`/api/image?v=${imageBust}`}
+                alt="Current token image"
+              />
+            </div>
             <h1>{state?.name ?? 'Chameleon'}</h1>
             <div className="ticker">${state?.symbol ?? 'CHMLN'}</div>
             {state && state.history.length > 0 && (
               <div className="skin-age">
+                <span className="live-dot" aria-hidden="true" />
                 this skin has been alive for{' '}
                 <strong>{fmtDuration(nowTs - state.history[0].ts)}</strong>
                 <PerfBadge perf={skinPerfs[state.history[0].signature]} />
@@ -280,7 +304,9 @@ export default function Home() {
               <div className="container stats-row">
                 <div className="stat">
                   <div className="stat-label">Burned so far</div>
-                  <div className="stat-value">{fmtTokens(burnedStats.burned)}</div>
+                  <div className="stat-value">
+                    <CountUp value={burnedStats.burned} format={fmtTokens} />
+                  </div>
                   <div className="stat-sub">
                     {burnedStats.burnedPercent.toFixed(3)}% of the supply — destroyed
                     forever, one change at a time
@@ -289,7 +315,11 @@ export default function Home() {
                 <div className="stat">
                   <div className="stat-label">Estimated value</div>
                   <div className="stat-value">
-                    {burnedStats.burnedValueUsd !== null ? fmtUsd(burnedStats.burnedValueUsd) : '—'}
+                    {burnedStats.burnedValueUsd !== null ? (
+                      <CountUp value={burnedStats.burnedValueUsd} format={fmtUsd} />
+                    ) : (
+                      '—'
+                    )}
                   </div>
                   <div className="stat-sub">
                     {burnedStats.priceUsd !== null
@@ -310,7 +340,8 @@ export default function Home() {
         )}
 
         <section className="section">
-          <div className="container">
+          <Reveal className="container">
+            <div className="eyebrow">The ritual</div>
             <h2>How it works</h2>
             <div className="cards">
               <div className="card">
@@ -340,11 +371,12 @@ export default function Home() {
                 </p>
               </div>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         <section className="section" id="change">
-          <div className="container">
+          <Reveal className="container">
+            <div className="eyebrow">Your turn</div>
             <h2>Change the token</h2>
             <ChangeForm state={state} onChanged={refresh} />
             <p className="section-note">
@@ -353,7 +385,7 @@ export default function Home() {
               may take several minutes — sometimes longer — to show the new
               name, ticker and image.
             </p>
-          </div>
+          </Reveal>
         </section>
 
         {state === null ? (
@@ -370,7 +402,8 @@ export default function Home() {
         ) : (
           state.history.length > 0 && (
             <section className="section">
-              <div className="container">
+              <Reveal className="container">
+                <div className="eyebrow">The museum</div>
                 <h2>Hall of Skins</h2>
                 <p className="section-intro">
                   Every identity this coin has ever worn — each one paid for with a
@@ -394,14 +427,15 @@ export default function Home() {
                 <p className="archive-link">
                   <Link href="/skins">View the full skin archive →</Link>
                 </p>
-              </div>
+              </Reveal>
             </section>
           )
         )}
 
         {topBurners.length > 0 && topBurners[0].tokens > 0 && (
           <section className="section">
-            <div className="container">
+            <Reveal className="container">
+              <div className="eyebrow">Hall of fame</div>
               <h2>Top burners</h2>
               <p className="section-intro">
                 The wallets that have destroyed the most tokens to change the
@@ -433,14 +467,16 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Reveal>
           </section>
         )}
 
         {state && state.history.length > 0 && (
           <section className="section">
-            <div className="container">
+            <Reveal className="container">
+              <div className="eyebrow">On-chain log</div>
               <h2>Latest changes</h2>
+              <div className="table-wrap">
               <table className="history-table">
                 <thead>
                   <tr>
@@ -493,7 +529,8 @@ export default function Home() {
                   ))}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </Reveal>
           </section>
         )}
       </main>
@@ -514,15 +551,45 @@ export default function Home() {
       )}
 
       <footer className="footer">
-        <div className="container">
-          <p>
+        <div className="container footer-grid">
+          <div className="footer-brand">
+            <Image src="/logo.png" alt="Chameleon logo" width={34} height={34} />
+            <span>Chameleon</span>
+          </div>
+          <nav className="footer-links">
+            <Link href="/skins">Skin archive</Link>
+            <a href="https://x.com/chameleonsol" target="_blank" rel="noreferrer">
+              X / @chameleonsol
+            </a>
+            {state?.mint && (
+              <>
+                <a
+                  href={`https://fomo.family/tokens/solana/${state.mint}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Buy on FOMO
+                </a>
+                <a
+                  href={`https://dexscreener.com/solana/${state.mint}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Chart
+                </a>
+                <a
+                  href={`https://solscan.io/token/${state.mint}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Solscan
+                </a>
+              </>
+            )}
+          </nav>
+          <p className="footer-fine">
             Burned tokens are destroyed permanently. This is not financial
             advice — join for the fun of it.
-          </p>
-          <p>
-            <a href="https://x.com/chameleonsol" target="_blank" rel="noreferrer">
-              Follow us on X — @chameleonsol
-            </a>
           </p>
         </div>
       </footer>

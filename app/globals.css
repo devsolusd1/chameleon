@@ -39,6 +39,17 @@ body {
   color: var(--green-dark);
 }
 
+/* Fine grain for depth (purely decorative) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 a {
   color: var(--green-dark);
 }
@@ -101,8 +112,70 @@ a {
   color: var(--white);
 }
 
+/* Scroll progress under the header */
+.scroll-progress {
+  height: 2px;
+  background: linear-gradient(90deg, var(--green) 0%, #4ade80 100%);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  transition: transform 0.08s linear;
+}
+
+/* Recent skins marquee */
+.marquee {
+  overflow: hidden;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 0;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 46s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 18px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.marquee-item em {
+  font-style: normal;
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.marquee-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+  opacity: 0.6;
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 /* Hero */
 .hero {
+  position: relative;
+  overflow: hidden;
   text-align: center;
   padding: 64px 0 48px;
   background:
@@ -110,14 +183,152 @@ a {
     linear-gradient(180deg, var(--green-pale) 0%, var(--white) 92%);
 }
 
+/* Soft drifting light behind the hero */
+.aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.3;
+}
+
+.aurora-blob.a1 {
+  width: 380px;
+  height: 380px;
+  left: -80px;
+  top: -110px;
+  background: radial-gradient(circle, #86efac 0%, transparent 70%);
+  animation: drift1 22s ease-in-out infinite;
+}
+
+.aurora-blob.a2 {
+  width: 420px;
+  height: 420px;
+  right: -110px;
+  top: -60px;
+  background: radial-gradient(circle, #bbf7d0 0%, transparent 70%);
+  animation: drift2 27s ease-in-out infinite;
+}
+
+.aurora-blob.a3 {
+  width: 300px;
+  height: 300px;
+  left: 46%;
+  bottom: -170px;
+  background: radial-gradient(circle, #6ee7b7 0%, transparent 70%);
+  opacity: 0.2;
+  animation: drift3 31s ease-in-out infinite;
+}
+
+@keyframes drift1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, 30px) scale(1.12);
+  }
+}
+
+@keyframes drift2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-46px, 26px) scale(1.08);
+  }
+}
+
+@keyframes drift3 {
+  0%,
+  100% {
+    transform: translate(-50%, 0) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -34px) scale(1.15);
+  }
+}
+
+.hero > .container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Live pulse next to the skin age */
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  margin-right: 7px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6);
+  animation: pulse-dot 2.2s ease-out infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(22, 163, 74, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+}
+
+/* Section eyebrow */
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 6px;
+}
+
+/* Scroll reveal */
+.reveal-hidden {
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Tables scroll instead of breaking the layout */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.token-frame {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 22px;
+}
+
 .hero img.token-image {
+  position: relative;
+  display: block;
   width: 136px;
   height: 136px;
   border-radius: 30px;
   border: 4px solid var(--white);
   outline: 1px solid var(--border);
   box-shadow: 0 12px 36px rgba(22, 163, 74, 0.22);
-  margin-bottom: 22px;
   object-fit: cover;
   background: var(--white);
 }
@@ -127,7 +338,10 @@ a {
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.12;
-  color: var(--text);
+  background: linear-gradient(175deg, var(--text) 35%, #166534 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .hero .ticker {
@@ -982,19 +1196,93 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+/* Light sheen sweeping across cards on hover.
+   Cards with badges must NOT clip overflow, so the sheen is rounded
+   by inheriting the card radius instead. */
+.card {
+  overflow: hidden;
+}
+
+.card::after,
+.skin-card::after,
+.burner-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.6) 50%,
+    transparent 68%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.card:hover::after,
+.skin-card:hover::after,
+.burner-card:hover::after {
+  transform: translateX(130%);
+}
+
+.card {
+  position: relative;
+}
+
 /* Footer */
 .footer {
   border-top: 1px solid var(--border);
-  padding: 28px 0;
-  text-align: center;
+  background: linear-gradient(180deg, var(--white) 0%, var(--green-pale) 100%);
+  padding: 34px 0 30px;
   color: var(--text-soft);
   font-size: 0.85rem;
-  margin-top: 44px;
+  margin-top: 52px;
+}
+
+.footer-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.footer-brand img {
+  border-radius: 9px;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 22px;
 }
 
 .footer a {
   color: var(--green-dark);
   font-weight: 600;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+.footer-fine {
+  max-width: 520px;
+  font-size: 0.78rem;
+  opacity: 0.85;
 }
 
 /* Wallet button re-skin (green) */
