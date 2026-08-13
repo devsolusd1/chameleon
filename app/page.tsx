@@ -8,7 +8,7 @@ export interface SiteState {
   symbol: string;
   description: string;
   mint: string;
-  burnPercent: number;
+  burnAmount: number;
   cooldownSeconds: number;
   cooldownRemaining: number;
   history: {
@@ -49,7 +49,7 @@ export default function Home() {
     setImageBust((n) => n + 1);
   }, [refresh]);
 
-  const burnPercent = state?.burnPercent ?? 0.1;
+  const burnFmt = (state?.burnAmount ?? 1000000).toLocaleString('en-US');
   const cooldownMin = Math.round((state?.cooldownSeconds ?? 120) / 60);
 
   return (
@@ -87,9 +87,9 @@ export default function Home() {
             <div className="ticker">${state?.symbol ?? 'CHMLN'}</div>
             <p className="tagline">
               The coin that changes its skin. Any holder can burn{' '}
-              <strong>{burnPercent}%</strong> of their own balance to change the
-              token&apos;s name, ticker and image — straight on-chain. Only this
-              website never changes.
+              <strong>{burnFmt} tokens (0.1% of the supply)</strong> to change
+              the token&apos;s name, ticker and image — straight on-chain. Only
+              this website never changes.
             </p>
             {state?.mint ? (
               <p className="mint-line">
@@ -115,7 +115,7 @@ export default function Home() {
               <div className="card">
                 <div className="step">1</div>
                 <h3>Connect your wallet</h3>
-                <p>You need to hold any amount of the token in your wallet.</p>
+                <p>You need to hold at least {burnFmt} tokens in your wallet.</p>
               </div>
               <div className="card">
                 <div className="step">2</div>
@@ -124,10 +124,10 @@ export default function Home() {
               </div>
               <div className="card">
                 <div className="step">3</div>
-                <h3>Burn {burnPercent}%</h3>
+                <h3>Burn 0.1% of the supply</h3>
                 <p>
-                  Approve the transaction that burns {burnPercent}% of your
-                  balance. The burn is verified on-chain.
+                  Approve the transaction that burns {burnFmt} tokens (0.1% of
+                  the supply). The burn is verified on-chain.
                 </p>
               </div>
               <div className="card">

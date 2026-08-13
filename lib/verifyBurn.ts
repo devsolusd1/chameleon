@@ -2,14 +2,14 @@ import {
   Connection,
   ParsedInstruction,
   ParsedTransactionWithMeta,
+  PublicKey,
 } from '@solana/web3.js';
-import { BURN_PERCENT, MAX_BURN_TX_AGE_SECONDS, MINT_ADDRESS, RPC_URL } from './config';
+import { BURN_AMOUNT_TOKENS, MAX_BURN_TX_AGE_SECONDS, MINT_ADDRESS, RPC_URL } from './config';
 
 export interface BurnVerification {
   ok: boolean;
   error?: string;
   burnedAmount?: bigint;
-  preBalance?: bigint;
 }
 
 function collectParsedInstructions(tx: ParsedTransactionWithMeta): ParsedInstruction[] {
@@ -27,7 +27,7 @@ function collectParsedInstructions(tx: ParsedTransactionWithMeta): ParsedInstruc
 
 /**
  * Verifies on-chain that `signature` is a recent, confirmed transaction in
- * which `wallet` burned at least BURN_PERCENT% of its balance of the token.
+ * which `wallet` burned at least BURN_AMOUNT_TOKENS whole tokens.
  */
 export async function verifyBurn(signature: string, wallet: string): Promise<BurnVerification> {
   const connection = new Connection(RPC_URL, 'confirmed');
@@ -64,28 +64,15 @@ export async function verifyBurn(signature: string, wallet: string): Promise<Bur
     return { ok: false, error: 'No burn of this token by this wallet was found in the transaction.' };
   }
 
-  // Balance before the burn (to compute the % burned)
-  const pre = tx.meta?.preTokenBalances?.find(
-    (b) => b.mint === MINT_ADDRESS && b.owner === wallet,
-  );
-  if (!pre) {
-    return { ok: false, error: 'Could not determine the balance before the burn.' };
-  }
-  const preBalance = BigInt(pre.uiTokenAmount.amount);
-  if (preBalance === 0n) {
-    return { ok: false, error: 'The wallet held no tokens before the burn.' };
-  }
-
-  // burnedAmount >= preBalance * (BURN_PERCENT/100), with 0.1% rounding tolerance
-  const requiredTimes100000 = preBalance * BigInt(Math.round(BURN_PERCENT * 1000));
-  const burnedTimes100000 = burnedAmount * 100000n;
-  const tolerance = requiredTimes100000 / 1000n;
-  if (burnedTimes100000 + tolerance < requiredTimes100000) {
+  // Fixed cost: BURN_AMOUNT_TOKENS whole tokens
+  const decimals = (await connection.getTokenSupply(new PublicKey(MINT_ADDRESS))).value.decimals;
+  const requiredRaw = BigInt(BURN_AMOUNT_TOKENS) * 10n ** BigInt(decimals);
+  if (burnedAmount < requiredRaw) {
     return {
       ok: false,
-      error: `Insufficient burn: you must burn at least ${BURN_PERCENT}% of your balance.`,
+      error: `Insufficient burn: changing the token requires burning ${BURN_AMOUNT_TOKENS.toLocaleString('en-US')} tokens.`,
     };
   }
 
-  return { ok: true, burnedAmount, preBalance };
+  return { ok: true, burnedAmount };
 }

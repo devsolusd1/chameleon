@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readState } from '@/lib/store';
-import { BURN_PERCENT, COOLDOWN_SECONDS, MINT_ADDRESS } from '@/lib/config';
+import { BURN_AMOUNT_TOKENS, COOLDOWN_SECONDS, MINT_ADDRESS } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,7 @@ export async function GET() {
       symbol: state.symbol,
       description: state.description,
       mint: MINT_ADDRESS,
-      burnPercent: BURN_PERCENT,
+      burnAmount: BURN_AMOUNT_TOKENS,
       cooldownSeconds: COOLDOWN_SECONDS,
       cooldownRemaining,
       history: state.history.slice(-10).reverse(),

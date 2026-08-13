@@ -44,7 +44,8 @@ export default function ChangeForm({ state, onChanged }: Props) {
   const [cooldown, setCooldown] = useState(0);
 
   const mint = state?.mint || '';
-  const burnPercent = state?.burnPercent ?? 0.1;
+  const burnTokens = state?.burnAmount ?? 1_000_000;
+  const burnTokensFmt = burnTokens.toLocaleString('en-US');
 
   // Local cooldown countdown, synced with the server
   useEffect(() => {
@@ -79,13 +80,13 @@ export default function ChangeForm({ state, onChanged }: Props) {
     loadBalance();
   }, [loadBalance]);
 
+  // Fixed cost of a change: burnTokens whole tokens
   const burnAmount = useMemo(() => {
-    if (balance === null || balance === 0n) return 0n;
-    // percentage with 3 decimal places of precision, rounding UP
-    // so the server-side check always passes
-    const num = balance * BigInt(Math.round(burnPercent * 1000));
-    return (num + 99999n) / 100000n;
-  }, [balance, burnPercent]);
+    if (decimals === null) return 0n;
+    return BigInt(burnTokens) * 10n ** BigInt(decimals);
+  }, [burnTokens, decimals]);
+
+  const insufficient = balance !== null && burnAmount > 0n && balance < burnAmount;
 
   const fmt = useCallback(
     (raw: bigint) => {
@@ -119,7 +120,14 @@ export default function ChangeForm({ state, onChanged }: Props) {
       return;
     }
     if (burnAmount === 0n) {
-      setStatus({ kind: 'err', msg: 'You do not have enough tokens to burn.' });
+      setStatus({ kind: 'err', msg: 'Could not determine the burn amount. Reload and try again.' });
+      return;
+    }
+    if (balance === null || balance < burnAmount) {
+      setStatus({
+        kind: 'err',
+        msg: `Insufficient balance: changing the token costs ${burnTokensFmt} tokens.`,
+      });
       return;
     }
 
@@ -256,12 +264,16 @@ export default function ChangeForm({ state, onChanged }: Props) {
             <div className="burn-info">
               {balance === null ? (
                 'Loading your balance...'
-              ) : balance === 0n ? (
-                <>You don&apos;t hold this token. Grab some to be able to change its skin.</>
               ) : (
                 <>
-                  Your balance: <strong>{fmt(balance)}</strong> — required burn (
-                  {burnPercent}%): <strong>{fmt(burnAmount)}</strong>
+                  Changing the token costs <strong>{burnTokensFmt}</strong> tokens
+                  (0.1% of the supply). Your balance: <strong>{fmt(balance)}</strong>
+                  {insufficient && (
+                    <>
+                      {' '}
+                      — <strong style={{ color: 'var(--red)' }}>not enough to burn</strong>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -273,13 +285,16 @@ export default function ChangeForm({ state, onChanged }: Props) {
               <button
                 className="btn"
                 onClick={submit}
-                disabled={busy || balance === 0n || balance === null}
+                disabled={busy || balance === null || insufficient || burnAmount === 0n}
               >
-                {busy ? 'Processing...' : `🔥 Burn ${burnPercent}% and change the token`}
+                {busy
+                  ? 'Processing...'
+                  : `🔥 Burn ${burnTokensFmt} tokens and change the token`}
               </button>
             ) : (
               <span className="hint">
-                Connect your wallet to burn {burnPercent}% and submit the change.
+                Connect your wallet to burn {burnTokensFmt} tokens (0.1% of the
+                supply) and submit the change.
               </span>
             )}
           </div>

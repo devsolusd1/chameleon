@@ -5,7 +5,8 @@ export const RPC_URL =
 
 export const MINT_ADDRESS = process.env.NEXT_PUBLIC_MINT_ADDRESS || '';
 
-export const BURN_PERCENT = parseFloat(process.env.BURN_PERCENT || '0.1');
+// Fixed cost of a change, in whole tokens
+export const BURN_AMOUNT_TOKENS = parseInt(process.env.BURN_AMOUNT || '1000000', 10);
 
 export const COOLDOWN_SECONDS = parseInt(process.env.COOLDOWN_SECONDS || '120', 10);
 

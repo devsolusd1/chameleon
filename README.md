@@ -12,8 +12,8 @@ URI points to `/api/metadata` on this domain forever.
    with `tokenAuthorityOption: CreatorUpdateAuthority` — the creator wallet
    remains the metadata *update authority* (mutable metadata).
 2. The holder connects their wallet on the site, fills in name/ticker/image
-   and approves a transaction that **burns 0.1% of their balance**
-   (configurable).
+   and approves a transaction that **burns 1,000,000 tokens** (configurable
+   via `BURN_AMOUNT`).
 3. The backend verifies the burn on-chain (right mint, right wallet, enough
    burned, recent transaction, never used before) and then:
    - updates `name` and `symbol` on-chain via Metaplex (`updateV1`), keeping
@@ -58,7 +58,7 @@ npm run build && npm start   # production
 | --- | --- |
 | `RPC_URL` | RPC used by the server (use a paid RPC in production) |
 | `UPDATE_AUTHORITY_SECRET` | Base58 key of the update authority (⚠️ secret!) |
-| `BURN_PERCENT` | % of the balance to burn (default `0.1`) |
+| `BURN_AMOUNT` | Tokens to burn per change (default `1000000`) |
 | `COOLDOWN_SECONDS` | Cooldown between changes (default `120`) |
 | `SITE_URL` | Fixed official website shown in the metadata |
 | `NEXT_PUBLIC_RPC_URL` | RPC used by the browser |
@@ -105,8 +105,7 @@ Without Redis configured the app falls back to file storage in `data/`
 - The burn is verified on-chain via `getParsedTransaction`: a
   `burn`/`burnChecked` instruction of the right mint, authorized by the
   claimed wallet.
-- The burned amount is compared with the balance *before* the burn
-  (`preTokenBalances`) — it must be ≥ `BURN_PERCENT`%.
+- The burned amount must be ≥ `BURN_AMOUNT` whole tokens.
 - Transactions older than 15 minutes are rejected and each signature can only
   be used once (anti-replay).
 - The cooldown is enforced server-side, not just in the UI.
