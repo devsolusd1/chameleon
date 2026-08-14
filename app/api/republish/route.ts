@@ -57,8 +57,9 @@ export async function POST(request: Request) {
     const mint = publicKey(MINT_ADDRESS);
     const current = await fetchMetadataFromSeeds(umi, { mint });
 
-    // On-chain strings are null-padded to their fixed size
-    const clean = (s: string) => s.replace(/\0+/g, '').trim();
+    // On-chain strings are null-padded to their fixed size; the zero-width
+    // toggle (below) is also stripped before comparing
+    const clean = (s: string) => s.replace(/[​\0]+/g, '').trim();
     if (
       clean(current.name) !== state.name ||
       clean(current.symbol) !== state.symbol ||
@@ -100,13 +101,27 @@ export async function POST(request: Request) {
       normalized = true;
     }
 
+    // Cache-buster: indexers only re-fetch the image when name/symbol
+    // actually change, so each touch alternates an invisible zero-width
+    // space at the end. Visually identical, but the on-chain value differs
+    // every 5 minutes. Applied only when it fits the on-chain byte limits
+    // (name 32, symbol 10); real changes always write clean values.
+    const TOGGLE = '​'; // zero-width space, 3 bytes in UTF-8
+    const hadToggle = current.name.includes(TOGGLE);
+    let writeName = state.name;
+    let writeSymbol = state.symbol;
+    if (!hadToggle) {
+      if (Buffer.byteLength(state.name, 'utf8') + 3 <= 32) writeName += TOGGLE;
+      if (Buffer.byteLength(state.symbol, 'utf8') + 3 <= 10) writeSymbol += TOGGLE;
+    }
+
     const result = await updateV1(umi, {
       mint,
       authority: umi.identity,
       data: {
         ...current,
-        name: state.name,
-        symbol: state.symbol,
+        name: writeName,
+        symbol: writeSymbol,
         uri,
       },
     }).sendAndConfirm(umi);
