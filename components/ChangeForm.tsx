@@ -119,6 +119,21 @@ export default function ChangeForm({ state, onChanged }: Props) {
       setStatus({ kind: 'err', msg: 'Invalid ticker: up to 10 characters, letters and numbers only.' });
       return;
     }
+    // Validate the image BEFORE burning — a rejected image after the burn
+    // would waste the holder's tokens
+    if (imageFile) {
+      if (!['image/png', 'image/jpeg', 'image/gif'].includes(imageFile.type)) {
+        setStatus({ kind: 'err', msg: 'Image must be PNG, JPEG or GIF.' });
+        return;
+      }
+      if (imageFile.size > 2 * 1024 * 1024) {
+        setStatus({
+          kind: 'err',
+          msg: `Image too large: ${(imageFile.size / 1024 / 1024).toFixed(1)} MB (2 MB max). Compress it and try again — no tokens were burned.`,
+        });
+        return;
+      }
+    }
     if (burnAmount === 0n) {
       setStatus({ kind: 'err', msg: 'Could not determine the burn amount. Reload and try again.' });
       return;
