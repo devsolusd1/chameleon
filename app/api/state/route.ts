@@ -1,11 +1,23 @@
 import { NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { readState } from '@/lib/store';
 import { enrichHistoryImages } from '@/lib/enrichHistory';
+import { touchIfDue } from '@/lib/republishCore';
 import { BURN_USD, COOLDOWN_SECONDS, MINT_ADDRESS } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function GET() {
+  // Traffic-driven metadata touch: visitor polls pace the republish to at
+  // most once per interval, without delaying this response
+  const touch = touchIfDue();
+  try {
+    waitUntil(touch);
+  } catch {
+    touch.catch(() => {});
+  }
+
   // Best-effort backfill of historical skin images (throttled, one-time per record)
   try {
     await enrichHistoryImages();

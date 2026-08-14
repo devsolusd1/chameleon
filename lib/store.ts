@@ -114,6 +114,23 @@ export async function writeState(state: TokenState): Promise<void> {
   }
 }
 
+// --- Traffic-driven touch gate: returns true at most once per TTL window
+//     across all instances (used to pace the metadata republish) ---
+
+const TOUCH_KEY = `chameleon:touch:${NS}`;
+let memTouchTs = 0;
+
+export async function tryMarkTouch(ttlSeconds: number): Promise<boolean> {
+  if (redis) {
+    const ok = await redis.set(TOUCH_KEY, '1', { nx: true, ex: ttlSeconds });
+    return ok === 'OK';
+  }
+  const now = Date.now();
+  if (now - memTouchTs < ttlSeconds * 1000) return false;
+  memTouchTs = now;
+  return true;
+}
+
 // --- Change lock (prevents two changes from processing at once) ---
 
 let memLock = false;
