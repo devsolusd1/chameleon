@@ -7,9 +7,10 @@ import {
 } from '@metaplex-foundation/mpl-token-metadata';
 import { keypairIdentity, publicKey } from '@metaplex-foundation/umi';
 import bs58 from 'bs58';
-import { acquireLock, readState, releaseLock } from '@/lib/store';
-import { MINT_ADDRESS, RPC_URL } from '@/lib/config';
+import { acquireLock, readState, releaseLock, writeState } from '@/lib/store';
+import { BASE_URL, MINT_ADDRESS, RPC_URL, SITE_URL, X_URL } from '@/lib/config';
 import { parseSecretKey } from '@/lib/keys';
+import { pinataEnabled, pinJson } from '@/lib/pinata';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -69,6 +70,36 @@ export async function POST(request: Request) {
       );
     }
 
+    // Normalization: if the stored URLs still point at an external gateway,
+    // convert them to our own /ipfs/<cid> proxy (re-pin the JSON with the
+    // proxied image URL and move the on-chain URI to it). Runs once; after
+    // that every touch is a plain rewrite.
+    let uri = state.metadataUri;
+    let normalized = false;
+    const cidOf = (url: string | null) =>
+      url?.match(/\/ipfs\/([a-zA-Z0-9]{40,70})/)?.[1] ?? null;
+    const imageCid = cidOf(state.imageUrl);
+    if (pinataEnabled() && !state.metadataUri.startsWith(BASE_URL) && imageCid) {
+      const newImageUrl = `${BASE_URL}/ipfs/${imageCid}`;
+      uri = await pinJson(
+        {
+          name: state.name,
+          symbol: state.symbol,
+          description: state.description,
+          image: newImageUrl,
+          external_url: SITE_URL,
+          extensions: { website: SITE_URL, twitter: X_URL },
+        },
+        `${state.symbol}-metadata`,
+      );
+      state.imageUrl = newImageUrl;
+      state.metadataUri = uri;
+      if (state.history.length > 0) {
+        state.history[state.history.length - 1].imageUrl = newImageUrl;
+      }
+      normalized = true;
+    }
+
     const result = await updateV1(umi, {
       mint,
       authority: umi.identity,
@@ -76,13 +107,18 @@ export async function POST(request: Request) {
         ...current,
         name: state.name,
         symbol: state.symbol,
-        uri: state.metadataUri,
+        uri,
       },
     }).sendAndConfirm(umi);
 
+    if (normalized) {
+      await writeState(state);
+    }
+
     return NextResponse.json({
       ok: true,
-      republished: { name: state.name, symbol: state.symbol },
+      normalized,
+      republished: { name: state.name, symbol: state.symbol, uri },
       signature: bs58.encode(result.signature),
     });
   } catch (err) {
