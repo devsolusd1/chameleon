@@ -1,0 +1,19 @@
+name: Republish metadata
+
+# Touches the on-chain metadata with the current values every ~5 minutes
+# so indexers/bots that missed the original update event re-index the
+# token. The endpoint is idempotent and skips itself during real changes.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  republish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Touch metadata
+        run: |
+          curl -sS -X POST "https://www.chameleoncoin.fun/api/republish" \
+            -H "Authorization: Bearer ${{ secrets.REPUBLISH_SECRET }}" \
+            --max-time 55 -w "\nHTTP %{http_code}\n"

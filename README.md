@@ -100,6 +100,17 @@ Without Redis configured the app falls back to file storage in `data/`
 - The metadata URI is `NEXT_PUBLIC_BASE_URL/api/metadata`. If you ever switch
   domains, run an update pointing to the new one (better: don't switch).
 
+## Metadata republish (indexer nudge)
+
+Some trading bots/terminals miss the metadata-update event and keep stale
+data. `POST /api/republish` (protected by `REPUBLISH_SECRET`) re-writes the
+CURRENT on-chain metadata with identical values — a harmless "touch" that
+emits a fresh account-change event for indexers. It shares the change lock
+and skips itself whenever the on-chain state differs from the stored state,
+so it can never overwrite a real change. A GitHub Actions workflow
+([.github/workflows/republish.yml](.github/workflows/republish.yml)) calls it
+every ~5 minutes using the `REPUBLISH_SECRET` repository secret.
+
 ## Burn flow security
 
 - The burn is verified on-chain via `getParsedTransaction`: a
