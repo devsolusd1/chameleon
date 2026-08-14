@@ -12,8 +12,8 @@ URI points to `/api/metadata` on this domain forever.
    with `tokenAuthorityOption: CreatorUpdateAuthority` — the creator wallet
    remains the metadata *update authority* (mutable metadata).
 2. The holder connects their wallet on the site, fills in name/ticker/image
-   and approves a transaction that **burns 1,000,000 tokens** (configurable
-   via `BURN_AMOUNT`).
+   and approves a transaction that **burns $50 worth of tokens**, quoted at
+   burn time (configurable via `BURN_USD`).
 3. The backend verifies the burn on-chain (right mint, right wallet, enough
    burned, recent transaction, never used before) and then:
    - updates `name` and `symbol` on-chain via Metaplex (`updateV1`), keeping
@@ -58,7 +58,7 @@ npm run build && npm start   # production
 | --- | --- |
 | `RPC_URL` | RPC used by the server (use a paid RPC in production) |
 | `UPDATE_AUTHORITY_SECRET` | Base58 key of the update authority (⚠️ secret!) |
-| `BURN_AMOUNT` | Tokens to burn per change (default `1000000`) |
+| `BURN_USD` | USD worth of tokens to burn per change, quoted live (default `50`) |
 | `COOLDOWN_SECONDS` | Cooldown between changes (default `120`) |
 | `SITE_URL` | Fixed official website shown in the metadata |
 | `NEXT_PUBLIC_RPC_URL` | RPC used by the browser |
@@ -116,7 +116,9 @@ every ~5 minutes using the `REPUBLISH_SECRET` repository secret.
 - The burn is verified on-chain via `getParsedTransaction`: a
   `burn`/`burnChecked` instruction of the right mint, authorized by the
   claimed wallet.
-- The burned amount must be ≥ `BURN_AMOUNT` whole tokens.
+- The burned amount must be worth ≥ `BURN_USD` (with a tolerance for price
+  drift between the quote and verification; temporary price-feed failures
+  and dips return a retryable error so the client resubmits the same burn).
 - Transactions older than 15 minutes are rejected and each signature can only
   be used once (anti-replay).
 - The cooldown is enforced server-side, not just in the UI.

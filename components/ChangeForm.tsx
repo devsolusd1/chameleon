@@ -44,8 +44,27 @@ export default function ChangeForm({ state, onChanged }: Props) {
   const [cooldown, setCooldown] = useState(0);
 
   const mint = state?.mint || '';
-  const burnTokens = state?.burnAmount ?? 1_000_000;
-  const burnTokensFmt = burnTokens.toLocaleString('en-US');
+  const burnUsd = state?.burnUsd ?? 50;
+
+  // Live quote: how many tokens are worth burnUsd right now
+  const [quote, setQuote] = useState<{ tokensToBurn: number; priceUsd: number } | null>(null);
+  const loadQuote = useCallback(async (): Promise<{ tokensToBurn: number; priceUsd: number } | null> => {
+    try {
+      const res = await fetch('/api/quote', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const q = await res.json();
+      setQuote(q);
+      return q;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    loadQuote();
+    const id = setInterval(loadQuote, 45000);
+    return () => clearInterval(id);
+  }, [loadQuote]);
 
   // Local cooldown countdown, synced with the server
   useEffect(() => {
@@ -80,11 +99,18 @@ export default function ChangeForm({ state, onChanged }: Props) {
     loadBalance();
   }, [loadBalance]);
 
-  // Fixed cost of a change: burnTokens whole tokens
-  const burnAmount = useMemo(() => {
-    if (decimals === null) return 0n;
-    return BigInt(burnTokens) * 10n ** BigInt(decimals);
-  }, [burnTokens, decimals]);
+  // Tokens to burn for the displayed quote, +5% buffer against price drift
+  // between the quote and the on-chain verification
+  const quoteToRaw = useCallback(
+    (q: { tokensToBurn: number } | null) => {
+      if (q === null || decimals === null) return 0n;
+      const buffered = Math.ceil(q.tokensToBurn * 1.05);
+      return BigInt(buffered) * 10n ** BigInt(decimals);
+    },
+    [decimals],
+  );
+
+  const burnAmount = useMemo(() => quoteToRaw(quote), [quote, quoteToRaw]);
 
   const insufficient = balance !== null && burnAmount > 0n && balance < burnAmount;
 
@@ -134,25 +160,31 @@ export default function ChangeForm({ state, onChanged }: Props) {
         return;
       }
     }
-    if (burnAmount === 0n) {
-      setStatus({ kind: 'err', msg: 'Could not determine the burn amount. Reload and try again.' });
-      return;
-    }
-    if (balance === null || balance < burnAmount) {
-      setStatus({
-        kind: 'err',
-        msg: `Insufficient balance: changing the token costs ${burnTokensFmt} tokens.`,
-      });
-      return;
-    }
-
     setBusy(true);
     try {
-      // 1) Burn X% of the balance
-      setStatus({ kind: 'info', msg: `Approve the burn of ${fmt(burnAmount)} tokens in your wallet...` });
+      // 1) Fresh quote AT BURN TIME, then burn that amount (+5% buffer)
+      setStatus({ kind: 'info', msg: 'Quoting the burn at the current price...' });
+      const freshQuote = (await loadQuote()) ?? quote;
+      const burnRaw = quoteToRaw(freshQuote);
+      if (burnRaw === 0n) {
+        setStatus({ kind: 'err', msg: 'Price feed unavailable — no tokens were burned. Try again shortly.' });
+        return;
+      }
+      if (balance === null || balance < burnRaw) {
+        setStatus({
+          kind: 'err',
+          msg: `Insufficient balance: changing the token costs ≈${fmt(burnRaw)} tokens (~$${burnUsd}) right now. No tokens were burned.`,
+        });
+        return;
+      }
+
+      setStatus({
+        kind: 'info',
+        msg: `Approve the burn of ${fmt(burnRaw)} tokens (≈$${burnUsd}) in your wallet...`,
+      });
       const mintPk = new PublicKey(mint);
       const ata = getAssociatedTokenAddressSync(mintPk, publicKey);
-      const ix = createBurnCheckedInstruction(ata, mintPk, publicKey, burnAmount, decimals);
+      const ix = createBurnCheckedInstruction(ata, mintPk, publicKey, burnRaw, decimals);
       const tx = new Transaction().add(ix);
       const latest = await connection.getLatestBlockhash();
       tx.recentBlockhash = latest.blockhash;
@@ -187,7 +219,7 @@ export default function ChangeForm({ state, onChanged }: Props) {
             kind: 'ok',
             msg: `Done! The token is now ${data.name} ($${data.symbol}).`,
             link: data.explorer,
-            shareText: `I just burned ${burnTokensFmt} tokens to give the chameleon a new skin: ${data.name} ($${data.symbol}) 🦎`,
+            shareText: `I just burned $${burnUsd} worth of tokens to give the chameleon a new skin: ${data.name} ($${data.symbol}) 🦎`,
           });
           setName('');
           setSymbol('');
@@ -280,10 +312,15 @@ export default function ChangeForm({ state, onChanged }: Props) {
             <div className="burn-info">
               {balance === null ? (
                 'Loading your balance...'
+              ) : quote === null ? (
+                'Quoting the burn at the current price...'
               ) : (
                 <>
-                  Changing the token costs <strong>{burnTokensFmt}</strong> tokens
-                  (0.1% of the supply). Your balance: <strong>{fmt(balance)}</strong>
+                  Changing the token costs <strong>${burnUsd}</strong> worth of
+                  tokens — right now ≈{' '}
+                  <strong>{Math.ceil(quote.tokensToBurn * 1.05).toLocaleString('en-US')}</strong>{' '}
+                  tokens, quoted again at burn time. Your balance:{' '}
+                  <strong>{fmt(balance)}</strong>
                   {insufficient && (
                     <>
                       {' '}
@@ -301,16 +338,16 @@ export default function ChangeForm({ state, onChanged }: Props) {
               <button
                 className="btn"
                 onClick={submit}
-                disabled={busy || balance === null || insufficient || burnAmount === 0n}
+                disabled={busy || balance === null || insufficient || quote === null}
               >
                 {busy
                   ? 'Processing...'
-                  : `Burn ${burnTokensFmt} tokens and change the token`}
+                  : `Burn $${burnUsd} worth and change the token`}
               </button>
             ) : (
               <span className="hint">
-                Connect your wallet to burn {burnTokensFmt} tokens (0.1% of the
-                supply) and submit the change.
+                Connect your wallet to burn ${burnUsd} worth of tokens and
+                submit the change.
               </span>
             )}
           </div>

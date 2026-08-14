@@ -19,7 +19,7 @@ export interface SiteState {
   symbol: string;
   description: string;
   mint: string;
-  burnAmount: number;
+  burnUsd: number;
   cooldownSeconds: number;
   cooldownRemaining: number;
   history: SkinRecord[];
@@ -160,7 +160,7 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  const burnFmt = (state?.burnAmount ?? 1000000).toLocaleString('en-US');
+  const burnUsdFmt = `$${state?.burnUsd ?? 50}`;
   const cooldownMin = Math.round((state?.cooldownSeconds ?? 120) / 60);
 
   // End of each skin's reign: the next change, or now for the current one
@@ -227,9 +227,9 @@ export default function Home() {
             )}
             <p className="tagline">
               The coin that changes its skin. Any holder can burn{' '}
-              <strong>{burnFmt} tokens (0.1% of the supply)</strong> to change
-              the token&apos;s name, ticker and image — straight on-chain. Only
-              this website never changes.
+              <strong>{burnUsdFmt} worth of tokens</strong> — quoted at burn
+              time — to change the token&apos;s name, ticker and image, straight
+              on-chain. Only this website never changes.
             </p>
             {state?.mint ? (
               <>
@@ -334,7 +334,7 @@ export default function Home() {
               <div className="card">
                 <div className="step">1</div>
                 <h3>Connect your wallet</h3>
-                <p>You need to hold at least {burnFmt} tokens in your wallet.</p>
+                <p>You need to hold at least {burnUsdFmt} worth of tokens in your wallet.</p>
               </div>
               <div className="card">
                 <div className="step">2</div>
@@ -343,10 +343,10 @@ export default function Home() {
               </div>
               <div className="card">
                 <div className="step">3</div>
-                <h3>Burn 0.1% of the supply</h3>
+                <h3>Burn {burnUsdFmt} worth of tokens</h3>
                 <p>
-                  Approve the transaction that burns {burnFmt} tokens (0.1% of
-                  the supply). The burn is verified on-chain.
+                  Approve the transaction that burns {burnUsdFmt} worth of
+                  tokens, quoted at the moment you burn. Verified on-chain.
                 </p>
               </div>
               <div className="card">

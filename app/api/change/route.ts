@@ -90,6 +90,14 @@ export async function POST(request: Request) {
     // --- On-chain burn verification ---
     const verification = await verifyBurn(signature, wallet);
     if (!verification.ok) {
+      if (verification.retryable) {
+        // temporary (price feed down / price dip): the client auto-retries
+        // with the same burn signature while it is still valid
+        return NextResponse.json(
+          { error: verification.error, retryAfter: 20 },
+          { status: 429 },
+        );
+      }
       return NextResponse.json({ error: verification.error }, { status: 400 });
     }
 

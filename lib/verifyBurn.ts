@@ -4,11 +4,14 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from '@solana/web3.js';
-import { BURN_AMOUNT_TOKENS, MAX_BURN_TX_AGE_SECONDS, MINT_ADDRESS, RPC_URL } from './config';
+import { BURN_USD, BURN_USD_TOLERANCE, MAX_BURN_TX_AGE_SECONDS, MINT_ADDRESS, RPC_URL } from './config';
+import { getTokenPriceUsd } from './price';
 
 export interface BurnVerification {
   ok: boolean;
   error?: string;
+  /** temporary condition (price feed / volatility) — worth retrying */
+  retryable?: boolean;
   burnedAmount?: bigint;
 }
 
@@ -27,7 +30,8 @@ function collectParsedInstructions(tx: ParsedTransactionWithMeta): ParsedInstruc
 
 /**
  * Verifies on-chain that `signature` is a recent, confirmed transaction in
- * which `wallet` burned at least BURN_AMOUNT_TOKENS whole tokens.
+ * which `wallet` burned tokens worth at least BURN_USD (with tolerance for
+ * price drift between the client quote and this verification).
  */
 export async function verifyBurn(signature: string, wallet: string): Promise<BurnVerification> {
   const connection = new Connection(RPC_URL, 'confirmed');
@@ -64,13 +68,25 @@ export async function verifyBurn(signature: string, wallet: string): Promise<Bur
     return { ok: false, error: 'No burn of this token by this wallet was found in the transaction.' };
   }
 
-  // Fixed cost: BURN_AMOUNT_TOKENS whole tokens
+  // USD-quoted cost: the burned amount must be worth at least BURN_USD
+  // (minus tolerance) at the current price
   const decimals = (await connection.getTokenSupply(new PublicKey(MINT_ADDRESS))).value.decimals;
-  const requiredRaw = BigInt(BURN_AMOUNT_TOKENS) * 10n ** BigInt(decimals);
-  if (burnedAmount < requiredRaw) {
+  const priceUsd = await getTokenPriceUsd();
+  if (priceUsd === null) {
     return {
       ok: false,
-      error: `Insufficient burn: changing the token requires burning ${BURN_AMOUNT_TOKENS.toLocaleString('en-US')} tokens.`,
+      retryable: true,
+      error: 'Price feed unavailable — retrying shortly.',
+    };
+  }
+  const burnedUi = Number(burnedAmount) / 10 ** decimals;
+  const burnedUsd = burnedUi * priceUsd;
+  if (burnedUsd < BURN_USD * BURN_USD_TOLERANCE) {
+    return {
+      ok: false,
+      // price may bounce back within the burn tx validity window
+      retryable: true,
+      error: `Insufficient burn: ~$${BURN_USD} worth of tokens is required (your burn is worth ≈$${burnedUsd.toFixed(2)} at the current price).`,
     };
   }
 
