@@ -104,12 +104,16 @@ Without Redis configured the app falls back to file storage in `data/`
 
 Some trading bots/terminals miss the metadata-update event and keep stale
 data. `POST /api/republish` (protected by `REPUBLISH_SECRET`) re-writes the
-CURRENT on-chain metadata with identical values — a harmless "touch" that
-emits a fresh account-change event for indexers. It shares the change lock
-and skips itself whenever the on-chain state differs from the stored state,
-so it can never overwrite a real change. A GitHub Actions workflow
-([.github/workflows/republish.yml](.github/workflows/republish.yml)) calls it
-every ~5 minutes using the `REPUBLISH_SECRET` repository secret.
+CURRENT on-chain metadata — a harmless "touch" that emits a fresh
+account-change event for indexers. It shares the change lock and skips
+itself whenever the on-chain state differs from the stored state, so it can
+never overwrite a real change.
+
+Automatic pacing (one touch per 5 minutes, driven by visitor traffic) is
+gated behind `AUTO_REPUBLISH=on` and is currently **disabled by default**.
+The GitHub Actions workflow
+([.github/workflows/republish.yml](.github/workflows/republish.yml)) is
+manual-only (Run workflow button).
 
 ## Burn flow security
 

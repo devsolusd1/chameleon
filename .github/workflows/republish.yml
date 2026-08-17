@@ -1,11 +1,9 @@
 name: Republish metadata
 
-# Touches the on-chain metadata with the current values every ~5 minutes
-# so indexers/bots that missed the original update event re-index the
-# token. The endpoint is idempotent and skips itself during real changes.
+# Manual-only: automatic touches were disabled (set AUTO_REPUBLISH=on on
+# Vercel to re-enable the traffic-driven pacing). This workflow remains
+# for on-demand runs from the Actions tab.
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:

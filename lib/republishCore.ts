@@ -140,6 +140,8 @@ const TOUCH_INTERVAL_SECONDS = 300;
 
 export async function touchIfDue(): Promise<void> {
   try {
+    // Kill switch: automatic touches only run when explicitly enabled
+    if (process.env.AUTO_REPUBLISH !== 'on') return;
     if (!MINT_ADDRESS || !process.env.UPDATE_AUTHORITY_SECRET) return;
     if (!(await tryMarkTouch(TOUCH_INTERVAL_SECONDS))) return;
     await performTouch();
