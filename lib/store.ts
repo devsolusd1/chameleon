@@ -82,10 +82,23 @@ function ensureDataDir() {
   }
 }
 
+// Short in-memory cache: collapses the many per-poll reads (every visitor
+// hits /api/state, /api/metadata, /api/image, /api/burned... every few
+// seconds) into at most one Redis GET per instance per STATE_TTL_MS. Keeps
+// Redis command volume far below plan limits. Slightly stale reads (≤ a few
+// seconds) are fine — the UI already polls on an interval.
+const STATE_TTL_MS = 8000;
+let stateCache: { ts: number; state: TokenState } | null = null;
+
 export async function readState(): Promise<TokenState> {
   if (redis) {
+    if (stateCache && Date.now() - stateCache.ts < STATE_TTL_MS) {
+      return stateCache.state;
+    }
     const stored = await redis.get<TokenState>(STATE_KEY);
-    return { ...DEFAULT_STATE, ...(stored ?? {}) };
+    const state = { ...DEFAULT_STATE, ...(stored ?? {}) };
+    stateCache = { ts: Date.now(), state };
+    return state;
   }
   // File fallback — never throws (read-only filesystems just get defaults)
   try {
@@ -102,6 +115,7 @@ export async function readState(): Promise<TokenState> {
 export async function writeState(state: TokenState): Promise<void> {
   if (redis) {
     await redis.set(STATE_KEY, state);
+    stateCache = { ts: Date.now(), state }; // keep the cache fresh
     return;
   }
   try {

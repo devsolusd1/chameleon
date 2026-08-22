@@ -137,6 +137,11 @@ export async function performTouch(): Promise<TouchResult> {
  * retries.
  */
 const TOUCH_INTERVAL_SECONDS = 300;
+// In-memory pre-gate: avoids hitting Redis (tryMarkTouch) on every single
+// poll. Each instance only consults the shared Redis gate at most once per
+// this window, cutting Redis writes from per-request to rare.
+const LOCAL_TOUCH_GAP_MS = 240_000;
+let lastLocalTouchAttempt = 0;
 
 export async function touchIfDue(): Promise<void> {
   try {
@@ -144,6 +149,11 @@ export async function touchIfDue(): Promise<void> {
     // to disable
     if (process.env.AUTO_REPUBLISH === 'off') return;
     if (!MINT_ADDRESS || !process.env.UPDATE_AUTHORITY_SECRET) return;
+    // Cheap local throttle before touching Redis at all
+    const now = Date.now();
+    if (now - lastLocalTouchAttempt < LOCAL_TOUCH_GAP_MS) return;
+    lastLocalTouchAttempt = now;
+    // Shared cross-instance gate (one touch per interval globally)
     if (!(await tryMarkTouch(TOUCH_INTERVAL_SECONDS))) return;
     await performTouch();
   } catch (err) {
