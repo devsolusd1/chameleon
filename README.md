@@ -110,10 +110,10 @@ itself whenever the on-chain state differs from the stored state, so it can
 never overwrite a real change.
 
 Automatic pacing (one touch per 5 minutes, driven by visitor traffic) is
-gated behind `AUTO_REPUBLISH=on` and is currently **disabled by default**.
-The GitHub Actions workflow
-([.github/workflows/republish.yml](.github/workflows/republish.yml)) is
-manual-only (Run workflow button).
+**on by default**; set `AUTO_REPUBLISH=off` on Vercel to disable it. The
+GitHub Actions workflow
+([.github/workflows/republish.yml](.github/workflows/republish.yml)) runs
+every ~5 minutes as a backup and can also be triggered manually.
 
 ## Burn flow security
 
