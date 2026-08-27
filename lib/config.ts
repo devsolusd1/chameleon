@@ -5,12 +5,16 @@ export const RPC_URL =
 
 export const MINT_ADDRESS = process.env.NEXT_PUBLIC_MINT_ADDRESS || '';
 
-// Cost of a change in USD — the token amount is quoted at burn time
-export const BURN_USD = parseFloat(process.env.BURN_USD || '50');
+// Cost of a change in USD — paid in SOL, quoted at payment time
+export const PAY_USD = parseFloat(process.env.PAY_USD || process.env.BURN_USD || '50');
 
-// Server-side tolerance: accepts burns worth at least this fraction of
-// BURN_USD (absorbs price drift between the client quote and verification)
-export const BURN_USD_TOLERANCE = 0.85;
+// Server-side tolerance: accepts payments worth at least this fraction of
+// PAY_USD (absorbs SOL price drift between the client quote and verification)
+export const PAY_USD_TOLERANCE = 0.9;
+
+// Wallet that receives the SOL payment for each change
+export const PAY_TO_WALLET =
+  process.env.PAY_TO_WALLET || '6Sx1z9mHu2iFr3L15VjRETDDnaTYVQp8DezDYhxXZ9aB';
 
 export const COOLDOWN_SECONDS = parseInt(process.env.COOLDOWN_SECONDS || '120', 10);
 
@@ -22,8 +26,12 @@ export const SITE_URL = process.env.SITE_URL || BASE_URL;
 // Official X (Twitter) profile — shown on the site and in the metadata
 export const X_URL = 'https://x.com/chameleonsol';
 
-// Maximum accepted age for the burn transaction (prevents reuse of old txs)
-export const MAX_BURN_TX_AGE_SECONDS = 15 * 60;
+// Fixed token description written into the pinned metadata JSON
+export const TOKEN_DESCRIPTION =
+  'The coin that changes its skin. Pay to change its name, ticker and image — the website never changes.';
+
+// Maximum accepted age for the payment transaction (prevents reuse of old txs)
+export const MAX_PAYMENT_TX_AGE_SECONDS = 15 * 60;
 
 // Form limits (Metaplex allows name up to 32 / symbol up to 10)
 export const MAX_NAME_LENGTH = 15;

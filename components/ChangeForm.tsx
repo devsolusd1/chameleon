@@ -10,12 +10,7 @@ const WalletMultiButton = dynamic(
   () => import('@solana/wallet-adapter-react-ui').then((m) => m.WalletMultiButton),
   { ssr: false },
 );
-import { PublicKey, Transaction } from '@solana/web3.js';
-import {
-  createBurnCheckedInstruction,
-  getAssociatedTokenAddressSync,
-  getMint,
-} from '@solana/spl-token';
+import { LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import type { SiteState } from '@/app/page';
 
 type Props = {
@@ -29,6 +24,13 @@ type Status =
   | { kind: 'ok'; msg: string; link?: string; shareText?: string }
   | { kind: 'err'; msg: string };
 
+interface Quote {
+  payUsd: number;
+  solPriceUsd: number;
+  solToPay: number;
+  payToWallet: string;
+}
+
 export default function ChangeForm({ state, onChanged }: Props) {
   const { connection } = useConnection();
   const { publicKey, sendTransaction, connected } = useWallet();
@@ -37,22 +39,21 @@ export default function ChangeForm({ state, onChanged }: Props) {
   const [symbol, setSymbol] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [balance, setBalance] = useState<bigint | null>(null);
-  const [decimals, setDecimals] = useState<number | null>(null);
+  const [solBalance, setSolBalance] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [cooldown, setCooldown] = useState(0);
 
   const mint = state?.mint || '';
-  const burnUsd = state?.burnUsd ?? 50;
+  const payUsd = state?.payUsd ?? 50;
 
-  // Live quote: how many tokens are worth burnUsd right now
-  const [quote, setQuote] = useState<{ tokensToBurn: number; priceUsd: number } | null>(null);
-  const loadQuote = useCallback(async (): Promise<{ tokensToBurn: number; priceUsd: number } | null> => {
+  // Live quote: how much SOL equals payUsd right now
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const loadQuote = useCallback(async (): Promise<Quote | null> => {
     try {
       const res = await fetch('/api/quote', { cache: 'no-store' });
       if (!res.ok) return null;
-      const q = await res.json();
+      const q = (await res.json()) as Quote;
       setQuote(q);
       return q;
     } catch {
@@ -77,53 +78,35 @@ export default function ChangeForm({ state, onChanged }: Props) {
     return () => clearInterval(id);
   }, [cooldown > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load the holder's balance
+  // Load the wallet's SOL balance
   const loadBalance = useCallback(async () => {
-    if (!publicKey || !mint) {
-      setBalance(null);
+    if (!publicKey) {
+      setSolBalance(null);
       return;
     }
     try {
-      const mintPk = new PublicKey(mint);
-      const mintInfo = await getMint(connection, mintPk);
-      setDecimals(mintInfo.decimals);
-      const ata = getAssociatedTokenAddressSync(mintPk, publicKey);
-      const bal = await connection.getTokenAccountBalance(ata);
-      setBalance(BigInt(bal.value.amount));
+      const lamports = await connection.getBalance(publicKey);
+      setSolBalance(lamports / LAMPORTS_PER_SOL);
     } catch {
-      setBalance(0n);
+      setSolBalance(0);
     }
-  }, [publicKey, mint, connection]);
+  }, [publicKey, connection]);
 
   useEffect(() => {
     loadBalance();
   }, [loadBalance]);
 
-  // Tokens to burn for the displayed quote, +5% buffer against price drift
-  // between the quote and the on-chain verification
-  const quoteToRaw = useCallback(
-    (q: { tokensToBurn: number } | null) => {
-      if (q === null || decimals === null) return 0n;
-      const buffered = Math.ceil(q.tokensToBurn * 1.05);
-      return BigInt(buffered) * 10n ** BigInt(decimals);
-    },
-    [decimals],
-  );
+  // SOL to pay for the displayed quote, +2% buffer against price drift +
+  // a little for the network fee
+  const solToPay = useCallback((q: Quote | null) => {
+    if (q === null) return 0;
+    return q.solToPay * 1.02;
+  }, []);
 
-  const burnAmount = useMemo(() => quoteToRaw(quote), [quote, quoteToRaw]);
-
-  const insufficient = balance !== null && burnAmount > 0n && balance < burnAmount;
-
-  const fmt = useCallback(
-    (raw: bigint) => {
-      if (decimals === null) return raw.toString();
-      const s = raw.toString().padStart(decimals + 1, '0');
-      const int = s.slice(0, -decimals) || '0';
-      const frac = decimals > 0 ? s.slice(-decimals).replace(/0+$/, '') : '';
-      return frac ? `${int}.${frac}` : int;
-    },
-    [decimals],
-  );
+  const displaySol = useMemo(() => solToPay(quote), [quote, solToPay]);
+  // Needs the payment + a small fee cushion
+  const insufficient =
+    solBalance !== null && displaySol > 0 && solBalance < displaySol + 0.002;
 
   const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
@@ -133,10 +116,10 @@ export default function ChangeForm({ state, onChanged }: Props) {
   };
 
   const submit = async () => {
-    if (!publicKey || !mint || decimals === null) return;
+    if (!publicKey || !mint) return;
     const cleanName = name.trim();
     const cleanSymbol = symbol.trim();
-    // Validate BEFORE burning so nobody wastes a burn on invalid input
+    // Validate BEFORE paying so nobody wastes a payment on invalid input
     if (!/^[A-Za-z0-9]+( [A-Za-z0-9]+)*$/.test(cleanName) || cleanName.length > 15) {
       setStatus({ kind: 'err', msg: 'Invalid name: up to 15 characters, letters and numbers only.' });
       return;
@@ -145,8 +128,6 @@ export default function ChangeForm({ state, onChanged }: Props) {
       setStatus({ kind: 'err', msg: 'Invalid ticker: up to 10 characters, letters and numbers only.' });
       return;
     }
-    // Validate the image BEFORE burning — a rejected image after the burn
-    // would waste the holder's tokens
     if (imageFile) {
       if (!['image/png', 'image/jpeg', 'image/gif'].includes(imageFile.type)) {
         setStatus({ kind: 'err', msg: 'Image must be PNG, JPEG or GIF.' });
@@ -155,36 +136,40 @@ export default function ChangeForm({ state, onChanged }: Props) {
       if (imageFile.size > 2 * 1024 * 1024) {
         setStatus({
           kind: 'err',
-          msg: `Image too large: ${(imageFile.size / 1024 / 1024).toFixed(1)} MB (2 MB max). Compress it and try again — no tokens were burned.`,
+          msg: `Image too large: ${(imageFile.size / 1024 / 1024).toFixed(1)} MB (2 MB max). Compress it and try again — nothing was paid.`,
         });
         return;
       }
     }
+
     setBusy(true);
     try {
-      // 1) Fresh quote AT BURN TIME, then burn that amount (+5% buffer)
-      setStatus({ kind: 'info', msg: 'Quoting the burn at the current price...' });
+      // 1) Fresh quote AT PAYMENT TIME, then pay that much SOL (+buffer)
+      setStatus({ kind: 'info', msg: 'Quoting the payment at the current SOL price...' });
       const freshQuote = (await loadQuote()) ?? quote;
-      const burnRaw = quoteToRaw(freshQuote);
-      if (burnRaw === 0n) {
-        setStatus({ kind: 'err', msg: 'Price feed unavailable — no tokens were burned. Try again shortly.' });
+      if (!freshQuote) {
+        setStatus({ kind: 'err', msg: 'Price feed unavailable — nothing was paid. Try again shortly.' });
         return;
       }
-      if (balance === null || balance < burnRaw) {
+      const paySol = solToPay(freshQuote);
+      const lamports = Math.ceil(paySol * LAMPORTS_PER_SOL);
+      if (solBalance === null || solBalance < paySol + 0.002) {
         setStatus({
           kind: 'err',
-          msg: `Insufficient balance: changing the token costs ≈${fmt(burnRaw)} tokens (~$${burnUsd}) right now. No tokens were burned.`,
+          msg: `Insufficient SOL: changing the token costs ≈${paySol.toFixed(4)} SOL (~$${payUsd}) right now, plus network fee. Nothing was paid.`,
         });
         return;
       }
 
       setStatus({
         kind: 'info',
-        msg: `Approve the burn of ${fmt(burnRaw)} tokens (≈$${burnUsd}) in your wallet...`,
+        msg: `Approve the payment of ≈${paySol.toFixed(4)} SOL (~$${payUsd}) in your wallet...`,
       });
-      const mintPk = new PublicKey(mint);
-      const ata = getAssociatedTokenAddressSync(mintPk, publicKey);
-      const ix = createBurnCheckedInstruction(ata, mintPk, publicKey, burnRaw, decimals);
+      const ix = SystemProgram.transfer({
+        fromPubkey: publicKey,
+        toPubkey: new PublicKey(freshQuote.payToWallet),
+        lamports,
+      });
       const tx = new Transaction().add(ix);
       const latest = await connection.getLatestBlockhash();
       tx.recentBlockhash = latest.blockhash;
@@ -192,16 +177,16 @@ export default function ChangeForm({ state, onChanged }: Props) {
 
       const signature = await sendTransaction(tx, connection);
 
-      setStatus({ kind: 'info', msg: 'Burn sent. Waiting for on-chain confirmation...' });
+      setStatus({ kind: 'info', msg: 'Payment sent. Waiting for on-chain confirmation...' });
       await connection.confirmTransaction(
         { signature, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight },
         'confirmed',
       );
 
-      // 2) Submit the form with proof of the burn. If another change won
-      // the slot (cooldown/lock), retry automatically — the burn signature
+      // 2) Submit the form with proof of payment. If another change won the
+      // slot (cooldown/lock), retry automatically — the payment signature
       // stays valid for ~15 minutes, so it is never wasted.
-      setStatus({ kind: 'info', msg: 'Burn confirmed! Updating the token metadata...' });
+      setStatus({ kind: 'info', msg: 'Payment confirmed! Updating the token metadata...' });
       const form = new FormData();
       form.set('wallet', publicKey.toBase58());
       form.set('signature', signature);
@@ -219,7 +204,7 @@ export default function ChangeForm({ state, onChanged }: Props) {
             kind: 'ok',
             msg: `Done! The token is now ${data.name} ($${data.symbol}).`,
             link: data.explorer,
-            shareText: `I just burned $${burnUsd} worth of tokens to give the chameleon a new skin: ${data.name} ($${data.symbol}) 🦎`,
+            shareText: `I just changed the chameleon's skin: it's now ${data.name} ($${data.symbol}) 🦎`,
           });
           setName('');
           setSymbol('');
@@ -232,13 +217,13 @@ export default function ChangeForm({ state, onChanged }: Props) {
         }
 
         // 429 with retryAfter = temporary (cooldown or another change in
-        // flight). Keep retrying up to ~13 min of total burn-tx validity.
+        // flight). Keep retrying up to ~13 min of total payment-tx validity.
         if (res.status === 429 && typeof data.retryAfter === 'number' && attempt < 15) {
           attempt++;
           const wait = Math.min(Math.max(data.retryAfter, 2), 150);
           setStatus({
             kind: 'info',
-            msg: `${data.error} Your burn is safe — submitting again automatically in ${wait}s. Keep this page open.`,
+            msg: `${data.error} Your payment is safe — submitting again automatically in ${wait}s. Keep this page open.`,
           });
           await new Promise((r) => setTimeout(r, wait * 1000));
           continue;
@@ -310,21 +295,20 @@ export default function ChangeForm({ state, onChanged }: Props) {
 
           {connected && (
             <div className="burn-info">
-              {balance === null ? (
-                'Loading your balance...'
+              {solBalance === null ? (
+                'Loading your SOL balance...'
               ) : quote === null ? (
-                'Quoting the burn at the current price...'
+                'Quoting the payment at the current SOL price...'
               ) : (
                 <>
-                  Changing the token costs <strong>${burnUsd}</strong> worth of
-                  tokens — right now ≈{' '}
-                  <strong>{Math.ceil(quote.tokensToBurn * 1.05).toLocaleString('en-US')}</strong>{' '}
-                  tokens, quoted again at burn time. Your balance:{' '}
-                  <strong>{fmt(balance)}</strong>
+                  Changing the token costs <strong>${payUsd}</strong> in SOL — right
+                  now ≈ <strong>{displaySol.toFixed(4)} SOL</strong>, quoted again at
+                  payment time. Your balance:{' '}
+                  <strong>{solBalance.toFixed(4)} SOL</strong>
                   {insufficient && (
                     <>
                       {' '}
-                      — <strong style={{ color: 'var(--red)' }}>not enough to burn</strong>
+                      — <strong style={{ color: 'var(--red)' }}>not enough SOL</strong>
                     </>
                   )}
                 </>
@@ -338,16 +322,13 @@ export default function ChangeForm({ state, onChanged }: Props) {
               <button
                 className="btn"
                 onClick={submit}
-                disabled={busy || balance === null || insufficient || quote === null}
+                disabled={busy || solBalance === null || insufficient || quote === null}
               >
-                {busy
-                  ? 'Processing...'
-                  : `Burn $${burnUsd} worth and change the token`}
+                {busy ? 'Processing...' : `Pay $${payUsd} in SOL and change the token`}
               </button>
             ) : (
               <span className="hint">
-                Connect your wallet to burn ${burnUsd} worth of tokens and
-                submit the change.
+                Connect your wallet to pay ${payUsd} in SOL and submit the change.
               </span>
             )}
           </div>

@@ -7,7 +7,7 @@ import {
 import { keypairIdentity, publicKey } from '@metaplex-foundation/umi';
 import bs58 from 'bs58';
 import { acquireLock, readState, releaseLock, tryMarkTouch, writeState } from './store';
-import { BASE_URL, MINT_ADDRESS, RPC_URL, SITE_URL, X_URL } from './config';
+import { BASE_URL, MINT_ADDRESS, RPC_URL, SITE_URL, TOKEN_DESCRIPTION, X_URL } from './config';
 import { parseSecretKey } from './keys';
 import { pinataEnabled, pinJson } from './pinata';
 
@@ -76,7 +76,7 @@ export async function performTouch(): Promise<TouchResult> {
         {
           name: state.name,
           symbol: state.symbol,
-          description: state.description,
+          description: TOKEN_DESCRIPTION,
           image: newImageUrl,
           external_url: SITE_URL,
           extensions: { website: SITE_URL, twitter: X_URL },

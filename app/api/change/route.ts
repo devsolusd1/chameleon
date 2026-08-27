@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { acquireLock, readState, releaseLock, saveImage, writeState } from '@/lib/store';
-import { verifyBurn } from '@/lib/verifyBurn';
+import { verifyPayment } from '@/lib/verifyPayment';
 import { updateOnChainMetadata } from '@/lib/updateMetadata';
 import { pinataEnabled, pinFile, pinJson } from '@/lib/pinata';
 import {
@@ -12,6 +12,7 @@ import {
   NAME_REGEX,
   SITE_URL,
   SYMBOL_REGEX,
+  TOKEN_DESCRIPTION,
   X_URL,
 } from '@/lib/config';
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
 
     // --- Basic validation ---
     if (!wallet || !signature) {
-      return NextResponse.json({ error: 'Wallet and burn signature are required.' }, { status: 400 });
+      return NextResponse.json({ error: 'Wallet and payment signature are required.' }, { status: 400 });
     }
     if (!name || name.length > MAX_NAME_LENGTH || !NAME_REGEX.test(name)) {
       return NextResponse.json(
@@ -84,15 +85,15 @@ export async function POST(request: Request) {
 
     // --- Signature already used? ---
     if (state.usedSignatures.includes(signature)) {
-      return NextResponse.json({ error: 'This burn transaction has already been used.' }, { status: 400 });
+      return NextResponse.json({ error: 'This payment transaction has already been used.' }, { status: 400 });
     }
 
-    // --- On-chain burn verification ---
-    const verification = await verifyBurn(signature, wallet);
+    // --- On-chain payment verification ---
+    const verification = await verifyPayment(signature, wallet);
     if (!verification.ok) {
       if (verification.retryable) {
-        // temporary (price feed down / price dip): the client auto-retries
-        // with the same burn signature while it is still valid
+        // temporary (price feed down / SOL price dip): the client auto-retries
+        // with the same payment signature while it is still valid
         return NextResponse.json(
           { error: verification.error, retryAfter: 20 },
           { status: 429 },
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
         {
           name,
           symbol,
-          description: state.description,
+          description: TOKEN_DESCRIPTION,
           // Static fallback (never the /api/image endpoint itself)
           image: imageUrl ?? `${BASE_URL}/logo.png`,
           external_url: SITE_URL,
@@ -138,7 +139,9 @@ export async function POST(request: Request) {
       newState.imageFile = saveImage(imageBuffer, imageType);
       newState.imageType = imageType;
     }
+    newState.description = TOKEN_DESCRIPTION;
     newState.lastChangeTs = Math.floor(Date.now() / 1000);
+    newState.totalChanges = (state.totalChanges || state.history.length) + 1;
     newState.usedSignatures = [...state.usedSignatures.slice(-500), signature];
     newState.history = [
       ...state.history.slice(-100),

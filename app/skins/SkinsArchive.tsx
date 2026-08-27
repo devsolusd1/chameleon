@@ -65,7 +65,7 @@ export default function SkinsArchive() {
             <h2>Skin archive</h2>
             <p className="section-intro">
               Every identity this coin has ever worn — newest first, each one
-              paid for with a burn of 0.1% of the supply. Click a skin for the
+              paid for on-chain. Click a skin for the
               full story.
             </p>
             {data === null ? (

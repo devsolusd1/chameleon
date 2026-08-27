@@ -36,14 +36,12 @@ export interface ChangeRecord {
   name: string;
   symbol: string;
   wallet: string;
-  /** burn transaction signature */
+  /** payment transaction signature */
   signature: string;
   /** metadata update transaction signature */
   updateSignature?: string;
   /** image the token wore during this change (IPFS/gateway URL) */
   imageUrl?: string | null;
-  /** tokens burned in this change (UI units), backfilled from the burn tx */
-  burnedTokens?: number | null;
   ts: number;
 }
 
@@ -58,6 +56,8 @@ export interface TokenState {
   /** IPFS/gateway URL of the current metadata JSON (Pinata mode) */
   metadataUri: string | null;
   lastChangeTs: number;
+  /** running count of all changes ever (history is capped, this is not) */
+  totalChanges: number;
   usedSignatures: string[];
   history: ChangeRecord[];
 }
@@ -66,12 +66,13 @@ const DEFAULT_STATE: TokenState = {
   name: process.env.TOKEN_NAME || 'Chameleon',
   symbol: process.env.TOKEN_SYMBOL || 'CHMLN',
   description:
-    'The coin that changes its skin. Burn your tokens to change its name, ticker and image.',
+    'The coin that changes its skin. Pay to change its name, ticker and image — the website never changes.',
   imageFile: null,
   imageType: null,
   imageUrl: null,
   metadataUri: null,
   lastChangeTs: 0,
+  totalChanges: 0,
   usedSignatures: [],
   history: [],
 };

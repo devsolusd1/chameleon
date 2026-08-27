@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'], display: 'swap' });
 
 const TITLE = 'Chameleon — the coin that changes its skin';
 const DESCRIPTION =
-  "Burn 0.1% of the token supply for the power to change the coin's name, ticker and image. Straight on-chain, with a cooldown between changes.";
+  "Pay $50 in SOL to change the coin's name, ticker and image. Straight on-chain, with a cooldown between changes.";
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 export const metadata: Metadata = {

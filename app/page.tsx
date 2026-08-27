@@ -19,25 +19,23 @@ export interface SiteState {
   symbol: string;
   description: string;
   mint: string;
-  burnUsd: number;
+  payUsd: number;
+  payToWallet: string;
   cooldownSeconds: number;
   cooldownRemaining: number;
   history: SkinRecord[];
 }
 
-export interface TopBurner {
+export interface TopChanger {
   wallet: string;
-  tokens: number;
   changes: number;
 }
 
-export interface BurnedStats {
-  initialSupply: number;
-  currentSupply: number;
-  burned: number;
-  burnedPercent: number;
+export interface SiteStats {
+  totalChanges: number;
   priceUsd: number | null;
-  burnedValueUsd: number | null;
+  marketCapUsd: number | null;
+  circulatingSupply: number | null;
 }
 
 // DexScreener chart points at the DAMM v2 pool (override via env when the
@@ -50,15 +48,15 @@ function fmtTokens(n: number) {
   return n.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-function fmtUsd(n: number) {
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+function fmtUsd0(n: number) {
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }
 
 export default function Home() {
   const [state, setState] = useState<SiteState | null>(null);
-  const [burnedStats, setBurnedStats] = useState<BurnedStats | null>(null);
+  const [stats, setStats] = useState<SiteStats | null>(null);
   const [skinPerfs, setSkinPerfs] = useState<Record<string, number | null>>({});
-  const [topBurners, setTopBurners] = useState<TopBurner[]>([]);
+  const [topChangers, setTopChangers] = useState<TopChanger[]>([]);
   const [imageBust, setImageBust] = useState(0);
   const [copied, setCopied] = useState(false);
   const [newSkin, setNewSkin] = useState<{ name: string; symbol: string } | null>(null);
@@ -113,33 +111,33 @@ export default function Home() {
   }, [refresh]);
 
   useEffect(() => {
-    const loadBurned = async () => {
+    const loadStats = async () => {
       try {
-        const res = await fetch('/api/burned', { cache: 'no-store' });
-        if (res.ok) setBurnedStats(await res.json());
+        const res = await fetch('/api/stats', { cache: 'no-store' });
+        if (res.ok) setStats(await res.json());
       } catch {
         // keep the previous stats; retry on next tick
       }
     };
-    loadBurned();
-    const id = setInterval(loadBurned, 60000);
+    loadStats();
+    const id = setInterval(loadStats, 60000);
     return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
-    const loadBurners = async () => {
+    const loadChangers = async () => {
       try {
-        const res = await fetch('/api/burners', { cache: 'no-store' });
+        const res = await fetch('/api/changers', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          setTopBurners(data.top ?? []);
+          setTopChangers(data.top ?? []);
         }
       } catch {
         // keep the previous ranking; retry on next tick
       }
     };
-    loadBurners();
-    const id = setInterval(loadBurners, 60000);
+    loadChangers();
+    const id = setInterval(loadChangers, 60000);
     return () => clearInterval(id);
   }, []);
 
@@ -160,7 +158,7 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  const burnUsdFmt = `$${state?.burnUsd ?? 50}`;
+  const payUsdFmt = `$${state?.payUsd ?? 50}`;
   const cooldownMin = Math.round((state?.cooldownSeconds ?? 120) / 60);
 
   // End of each skin's reign: the next change, or now for the current one
@@ -226,10 +224,10 @@ export default function Home() {
               </div>
             )}
             <p className="tagline">
-              The coin that changes its skin. Any holder can burn{' '}
-              <strong>{burnUsdFmt} worth of tokens</strong> — quoted at burn
-              time — to change the token&apos;s name, ticker and image, straight
-              on-chain. Only this website never changes.
+              The coin that changes its skin. Anyone can pay{' '}
+              <strong>{payUsdFmt} in SOL</strong> — quoted live — to change the
+              token&apos;s name, ticker and image, straight on-chain. Only this
+              website never changes.
             </p>
             {state?.mint ? (
               <>
@@ -277,7 +275,7 @@ export default function Home() {
           </div>
         </section>
 
-        {burnedStats === null ? (
+        {stats === null ? (
           <section className="stats-band">
             <div className="container stats-row">
               <div className="skeleton skeleton-stat" />
@@ -286,44 +284,39 @@ export default function Home() {
             </div>
           </section>
         ) : (
-          burnedStats.burned > 0 && (
-            <section className="stats-band">
-              <div className="container stats-row">
-                <div className="stat">
-                  <div className="stat-label">Burned so far</div>
-                  <div className="stat-value">
-                    <CountUp value={burnedStats.burned} format={fmtTokens} />
-                  </div>
-                  <div className="stat-sub">
-                    {burnedStats.burnedPercent.toFixed(3)}% of the supply — destroyed
-                    forever, one change at a time
-                  </div>
+          <section className="stats-band">
+            <div className="container stats-row">
+              <div className="stat">
+                <div className="stat-label">Skins so far</div>
+                <div className="stat-value">
+                  <CountUp value={stats.totalChanges} format={fmtTokens} />
                 </div>
-                <div className="stat">
-                  <div className="stat-label">Estimated value</div>
-                  <div className="stat-value">
-                    {burnedStats.burnedValueUsd !== null ? (
-                      <CountUp value={burnedStats.burnedValueUsd} format={fmtUsd} />
-                    ) : (
-                      '—'
-                    )}
-                  </div>
-                  <div className="stat-sub">
-                    {burnedStats.priceUsd !== null
-                      ? `at current price ($${burnedStats.priceUsd.toLocaleString('en-US', { maximumSignificantDigits: 4 })})`
-                      : 'price unavailable'}
-                  </div>
+                <div className="stat-sub">identities the coin has worn</div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">Market cap</div>
+                <div className="stat-value">
+                  {stats.marketCapUsd !== null ? (
+                    <CountUp value={stats.marketCapUsd} format={fmtUsd0} />
+                  ) : (
+                    '—'
+                  )}
                 </div>
-                <div className="stat">
-                  <div className="stat-label">Circulating supply</div>
-                  <div className="stat-value">{fmtTokens(burnedStats.currentSupply)}</div>
-                  <div className="stat-sub">
-                    out of {fmtTokens(burnedStats.initialSupply)} minted
-                  </div>
+                <div className="stat-sub">
+                  {stats.priceUsd !== null
+                    ? `at current price ($${stats.priceUsd.toLocaleString('en-US', { maximumSignificantDigits: 4 })})`
+                    : 'price unavailable'}
                 </div>
               </div>
-            </section>
-          )
+              <div className="stat">
+                <div className="stat-label">Circulating supply</div>
+                <div className="stat-value">
+                  {stats.circulatingSupply !== null ? fmtTokens(stats.circulatingSupply) : '—'}
+                </div>
+                <div className="stat-sub">total token supply</div>
+              </div>
+            </div>
+          </section>
         )}
 
         <section className="section">
@@ -334,7 +327,7 @@ export default function Home() {
               <div className="card">
                 <div className="step">1</div>
                 <h3>Connect your wallet</h3>
-                <p>You need to hold at least {burnUsdFmt} worth of tokens in your wallet.</p>
+                <p>You need about {payUsdFmt} in SOL, plus a little for the network fee.</p>
               </div>
               <div className="card">
                 <div className="step">2</div>
@@ -343,10 +336,10 @@ export default function Home() {
               </div>
               <div className="card">
                 <div className="step">3</div>
-                <h3>Burn {burnUsdFmt} worth of tokens</h3>
+                <h3>Pay {payUsdFmt} in SOL</h3>
                 <p>
-                  Approve the transaction that burns {burnUsdFmt} worth of
-                  tokens, quoted at the moment you burn. Verified on-chain.
+                  Approve the payment of {payUsdFmt} in SOL, quoted live at the
+                  moment you pay. Verified on-chain.
                 </p>
               </div>
               <div className="card">
@@ -393,11 +386,11 @@ export default function Home() {
                 <div className="eyebrow">The museum</div>
                 <h2>Hall of Skins</h2>
                 <p className="section-intro">
-                  Every identity this coin has ever worn — each one paid for with a
-                  burn. The percentage next to each ticker is how much the token&apos;s
-                  price moved while that skin was active: from the moment it took
-                  over until it was replaced (the current skin counts up to right
-                  now). Green skins pumped, red skins dumped.
+                  Every identity this coin has ever worn. The percentage next to
+                  each ticker is how much the token&apos;s price moved while that
+                  skin was active: from the moment it took over until it was
+                  replaced (the current skin counts up to right now). Green skins
+                  pumped, red skins dumped.
                 </p>
                 <div className="skins-grid">
                   {/* API already returns newest first */}
@@ -419,37 +412,30 @@ export default function Home() {
           )
         )}
 
-        {topBurners.length > 0 && topBurners[0].tokens > 0 && (
+        {topChangers.length > 0 && topChangers[0].changes > 0 && (
           <section className="section">
             <Reveal className="container">
               <div className="eyebrow">Hall of fame</div>
-              <h2>Top burners</h2>
+              <h2>Top changers</h2>
               <p className="section-intro">
-                The wallets that have destroyed the most tokens to change the
-                chameleon&apos;s skin.
+                The wallets that have changed the chameleon&apos;s skin the most.
               </p>
               <div className="burners-grid">
-                {topBurners.map((b, i) => (
-                  <div className={`burner-card rank-${i + 1}`} key={b.wallet}>
-                    {i === 0 && <div className="skin-badge">TOP BURNER</div>}
+                {topChangers.map((c, i) => (
+                  <div className={`burner-card rank-${i + 1}`} key={c.wallet}>
+                    {i === 0 && <div className="skin-badge">TOP CHANGER</div>}
                     <div className="burner-medal">{i + 1}</div>
-                    <div className="burner-tokens">{fmtTokens(b.tokens)}</div>
+                    <div className="burner-tokens">{c.changes}</div>
                     <div className="burner-sub">
-                      tokens burned across {b.changes}{' '}
-                      {b.changes === 1 ? 'change' : 'changes'}
+                      {c.changes === 1 ? 'skin change' : 'skin changes'}
                     </div>
-                    {burnedStats?.priceUsd != null && (
-                      <div className="burner-usd">
-                        ≈ {fmtUsd(b.tokens * burnedStats.priceUsd)} at current price
-                      </div>
-                    )}
                     <a
                       className="burner-wallet"
-                      href={`https://solscan.io/account/${b.wallet}`}
+                      href={`https://solscan.io/account/${c.wallet}`}
                       target="_blank"
                       rel="noreferrer"
                     >
-                      {shortAddr(b.wallet)}
+                      {shortAddr(c.wallet)}
                     </a>
                   </div>
                 ))}
@@ -494,9 +480,9 @@ export default function Home() {
                           href={`https://solscan.io/tx/${h.signature}`}
                           target="_blank"
                           rel="noreferrer"
-                          title="Burn transaction"
+                          title="Payment transaction"
                         >
-                          burn
+                          payment
                         </a>
                         {h.updateSignature && (
                           <>
@@ -571,8 +557,7 @@ export default function Home() {
             )}
           </nav>
           <p className="footer-fine">
-            Burned tokens are destroyed permanently. This is not financial
-            advice — join for the fun of it.
+            This is not financial advice — join for the fun of it.
           </p>
         </div>
       </footer>

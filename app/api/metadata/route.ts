@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readState } from '@/lib/store';
-import { BASE_URL, SITE_URL, X_URL } from '@/lib/config';
+import { BASE_URL, SITE_URL, TOKEN_DESCRIPTION, X_URL } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export async function GET() {
     {
       name: state.name,
       symbol: state.symbol,
-      description: state.description,
+      description: TOKEN_DESCRIPTION,
       image:
         state.imageUrl && !state.imageUrl.includes('/api/image')
           ? state.imageUrl

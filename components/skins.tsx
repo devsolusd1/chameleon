@@ -159,7 +159,7 @@ export function SkinModal({
                 target="_blank"
                 rel="noreferrer"
               >
-                burn
+                payment
               </a>
               {skin.updateSignature && (
                 <>
