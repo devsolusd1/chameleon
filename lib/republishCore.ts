@@ -145,9 +145,9 @@ let lastLocalTouchAttempt = 0;
 
 export async function touchIfDue(): Promise<void> {
   try {
-    // Kill switch: automatic touches run by default; set AUTO_REPUBLISH=off
-    // to disable
-    if (process.env.AUTO_REPUBLISH === 'off') return;
+    // Automatic metadata touches are DISABLED. Set AUTO_REPUBLISH=on to
+    // re-enable the traffic-driven pacing.
+    if (process.env.AUTO_REPUBLISH !== 'on') return;
     if (!MINT_ADDRESS || !process.env.UPDATE_AUTHORITY_SECRET) return;
     // Cheap local throttle before touching Redis at all
     const now = Date.now();

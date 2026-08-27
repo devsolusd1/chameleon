@@ -1,11 +1,9 @@
 name: Republish metadata
 
-# Backup pacing for the metadata touch (the site's own traffic paces it
-# too). Every ~5 minutes; also runnable on demand from the Actions tab.
-# Set AUTO_REPUBLISH=off on Vercel to disable touches entirely.
+# Automatic touches are DISABLED. This workflow only runs on demand
+# (Run workflow button). Set AUTO_REPUBLISH=on on Vercel to re-enable the
+# traffic-driven pacing.
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
