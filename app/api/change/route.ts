@@ -88,17 +88,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This payment transaction has already been used.' }, { status: 400 });
     }
 
-    // --- On-chain payment verification ---
+    // --- On-chain payment verification (fixed SOL amount) ---
     const verification = await verifyPayment(signature, wallet);
     if (!verification.ok) {
-      if (verification.retryable) {
-        // temporary (price feed down / SOL price dip): the client auto-retries
-        // with the same payment signature while it is still valid
-        return NextResponse.json(
-          { error: verification.error, retryAfter: 20 },
-          { status: 429 },
-        );
-      }
       return NextResponse.json({ error: verification.error }, { status: 400 });
     }
 

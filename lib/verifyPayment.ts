@@ -1,18 +1,15 @@
 import { Connection, ParsedInstruction, ParsedTransactionWithMeta } from '@solana/web3.js';
 import {
   MAX_PAYMENT_TX_AGE_SECONDS,
+  PAY_SOL,
   PAY_TO_WALLET,
-  PAY_USD,
-  PAY_USD_TOLERANCE,
+  PAY_TOLERANCE,
   RPC_URL,
 } from './config';
-import { getSolPriceUsd } from './price';
 
 export interface PaymentVerification {
   ok: boolean;
   error?: string;
-  /** temporary condition (price feed / volatility) — worth retrying */
-  retryable?: boolean;
   lamports?: bigint;
 }
 
@@ -31,9 +28,7 @@ function collectParsedInstructions(tx: ParsedTransactionWithMeta): ParsedInstruc
 
 /**
  * Verifies on-chain that `signature` is a recent, confirmed transaction in
- * which `wallet` transferred SOL worth at least PAY_USD to PAY_TO_WALLET
- * (with tolerance for SOL price drift between the client quote and this
- * verification).
+ * which `wallet` transferred at least PAY_SOL (fixed) to PAY_TO_WALLET.
  */
 export async function verifyPayment(
   signature: string,
@@ -73,18 +68,11 @@ export async function verifyPayment(
     };
   }
 
-  // USD check: the paid SOL must be worth at least PAY_USD (minus tolerance)
-  const solPriceUsd = await getSolPriceUsd();
-  if (solPriceUsd === null) {
-    return { ok: false, retryable: true, error: 'Price feed unavailable — retrying shortly.' };
-  }
-  const paidSol = Number(lamports) / 1e9;
-  const paidUsd = paidSol * solPriceUsd;
-  if (paidUsd < PAY_USD * PAY_USD_TOLERANCE) {
+  const requiredLamports = BigInt(Math.floor(PAY_SOL * PAY_TOLERANCE * 1e9));
+  if (lamports < requiredLamports) {
     return {
       ok: false,
-      retryable: true,
-      error: `Insufficient payment: ~$${PAY_USD} in SOL is required (your payment is worth ≈$${paidUsd.toFixed(2)} at the current SOL price).`,
+      error: `Insufficient payment: ${PAY_SOL} SOL is required (you paid ${(Number(lamports) / 1e9).toFixed(4)} SOL).`,
     };
   }
 

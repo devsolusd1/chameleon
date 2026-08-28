@@ -25,9 +25,7 @@ type Status =
   | { kind: 'err'; msg: string };
 
 interface Quote {
-  payUsd: number;
-  solPriceUsd: number;
-  solToPay: number;
+  paySol: number;
   payToWallet: string;
 }
 
@@ -45,9 +43,9 @@ export default function ChangeForm({ state, onChanged }: Props) {
   const [cooldown, setCooldown] = useState(0);
 
   const mint = state?.mint || '';
-  const payUsd = state?.payUsd ?? 50;
+  const paySol = state?.paySol ?? 2;
 
-  // Live quote: how much SOL equals payUsd right now
+  // Payment target (fixed SOL amount + receiving wallet)
   const [quote, setQuote] = useState<Quote | null>(null);
   const loadQuote = useCallback(async (): Promise<Quote | null> => {
     try {
@@ -63,8 +61,6 @@ export default function ChangeForm({ state, onChanged }: Props) {
 
   useEffect(() => {
     loadQuote();
-    const id = setInterval(loadQuote, 45000);
-    return () => clearInterval(id);
   }, [loadQuote]);
 
   // Local cooldown countdown, synced with the server
@@ -96,14 +92,7 @@ export default function ChangeForm({ state, onChanged }: Props) {
     loadBalance();
   }, [loadBalance]);
 
-  // SOL to pay for the displayed quote, +2% buffer against price drift +
-  // a little for the network fee
-  const solToPay = useCallback((q: Quote | null) => {
-    if (q === null) return 0;
-    return q.solToPay * 1.02;
-  }, []);
-
-  const displaySol = useMemo(() => solToPay(quote), [quote, solToPay]);
+  const displaySol = useMemo(() => quote?.paySol ?? paySol, [quote, paySol]);
   // Needs the payment + a small fee cushion
   const insufficient =
     solBalance !== null && displaySol > 0 && solBalance < displaySol + 0.002;
@@ -144,26 +133,25 @@ export default function ChangeForm({ state, onChanged }: Props) {
 
     setBusy(true);
     try {
-      // 1) Fresh quote AT PAYMENT TIME, then pay that much SOL (+buffer)
-      setStatus({ kind: 'info', msg: 'Quoting the payment at the current SOL price...' });
-      const freshQuote = (await loadQuote()) ?? quote;
+      // 1) Resolve the fixed payment target, then pay exactly PAY_SOL
+      const freshQuote = quote ?? (await loadQuote());
       if (!freshQuote) {
-        setStatus({ kind: 'err', msg: 'Price feed unavailable — nothing was paid. Try again shortly.' });
+        setStatus({ kind: 'err', msg: 'Could not load the payment details — nothing was paid. Try again shortly.' });
         return;
       }
-      const paySol = solToPay(freshQuote);
-      const lamports = Math.ceil(paySol * LAMPORTS_PER_SOL);
-      if (solBalance === null || solBalance < paySol + 0.002) {
+      const amountSol = freshQuote.paySol;
+      const lamports = Math.round(amountSol * LAMPORTS_PER_SOL);
+      if (solBalance === null || solBalance < amountSol + 0.002) {
         setStatus({
           kind: 'err',
-          msg: `Insufficient SOL: changing the token costs ≈${paySol.toFixed(4)} SOL (~$${payUsd}) right now, plus network fee. Nothing was paid.`,
+          msg: `Insufficient SOL: changing the token costs ${amountSol} SOL plus a small network fee. Nothing was paid.`,
         });
         return;
       }
 
       setStatus({
         kind: 'info',
-        msg: `Approve the payment of ≈${paySol.toFixed(4)} SOL (~$${payUsd}) in your wallet...`,
+        msg: `Approve the payment of ${amountSol} SOL in your wallet...`,
       });
       const ix = SystemProgram.transfer({
         fromPubkey: publicKey,
@@ -297,14 +285,10 @@ export default function ChangeForm({ state, onChanged }: Props) {
             <div className="burn-info">
               {solBalance === null ? (
                 'Loading your SOL balance...'
-              ) : quote === null ? (
-                'Quoting the payment at the current SOL price...'
               ) : (
                 <>
-                  Changing the token costs <strong>${payUsd}</strong> in SOL — right
-                  now ≈ <strong>{displaySol.toFixed(4)} SOL</strong>, quoted again at
-                  payment time. Your balance:{' '}
-                  <strong>{solBalance.toFixed(4)} SOL</strong>
+                  Changing the token costs <strong>{displaySol} SOL</strong>. Your
+                  balance: <strong>{solBalance.toFixed(4)} SOL</strong>
                   {insufficient && (
                     <>
                       {' '}
@@ -322,13 +306,13 @@ export default function ChangeForm({ state, onChanged }: Props) {
               <button
                 className="btn"
                 onClick={submit}
-                disabled={busy || solBalance === null || insufficient || quote === null}
+                disabled={busy || solBalance === null || insufficient}
               >
-                {busy ? 'Processing...' : `Pay $${payUsd} in SOL and change the token`}
+                {busy ? 'Processing...' : `Pay ${displaySol} SOL and change the token`}
               </button>
             ) : (
               <span className="hint">
-                Connect your wallet to pay ${payUsd} in SOL and submit the change.
+                Connect your wallet to pay {displaySol} SOL and submit the change.
               </span>
             )}
           </div>

@@ -3,7 +3,7 @@ import { waitUntil } from '@vercel/functions';
 import { readState } from '@/lib/store';
 import { enrichHistoryImages } from '@/lib/enrichHistory';
 import { touchIfDue } from '@/lib/republishCore';
-import { PAY_USD, PAY_TO_WALLET, COOLDOWN_SECONDS, MINT_ADDRESS } from '@/lib/config';
+import { PAY_SOL, PAY_TO_WALLET, COOLDOWN_SECONDS, MINT_ADDRESS } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -35,7 +35,7 @@ export async function GET() {
       symbol: state.symbol,
       description: state.description,
       mint: MINT_ADDRESS,
-      payUsd: PAY_USD,
+      paySol: PAY_SOL,
       payToWallet: PAY_TO_WALLET,
       cooldownSeconds: COOLDOWN_SECONDS,
       cooldownRemaining,

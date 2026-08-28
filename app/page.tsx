@@ -19,7 +19,7 @@ export interface SiteState {
   symbol: string;
   description: string;
   mint: string;
-  payUsd: number;
+  paySol: number;
   payToWallet: string;
   cooldownSeconds: number;
   cooldownRemaining: number;
@@ -158,7 +158,7 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  const payUsdFmt = `$${state?.payUsd ?? 50}`;
+  const paySolFmt = `${state?.paySol ?? 2} SOL`;
   const cooldownMin = Math.round((state?.cooldownSeconds ?? 120) / 60);
 
   // End of each skin's reign: the next change, or now for the current one
@@ -225,9 +225,8 @@ export default function Home() {
             )}
             <p className="tagline">
               The coin that changes its skin. Anyone can pay{' '}
-              <strong>{payUsdFmt} in SOL</strong> — quoted live — to change the
-              token&apos;s name, ticker and image, straight on-chain. Only this
-              website never changes.
+              <strong>{paySolFmt}</strong> to change the token&apos;s name, ticker
+              and image, straight on-chain. Only this website never changes.
             </p>
             {state?.mint ? (
               <>
@@ -327,7 +326,7 @@ export default function Home() {
               <div className="card">
                 <div className="step">1</div>
                 <h3>Connect your wallet</h3>
-                <p>You need about {payUsdFmt} in SOL, plus a little for the network fee.</p>
+                <p>You need {paySolFmt}, plus a little for the network fee.</p>
               </div>
               <div className="card">
                 <div className="step">2</div>
@@ -336,10 +335,10 @@ export default function Home() {
               </div>
               <div className="card">
                 <div className="step">3</div>
-                <h3>Pay {payUsdFmt} in SOL</h3>
+                <h3>Pay {paySolFmt}</h3>
                 <p>
-                  Approve the payment of {payUsdFmt} in SOL, quoted live at the
-                  moment you pay. Verified on-chain.
+                  Approve the {paySolFmt} payment in your wallet. Verified
+                  on-chain, then applied instantly.
                 </p>
               </div>
               <div className="card">

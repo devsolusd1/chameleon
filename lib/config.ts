@@ -5,12 +5,12 @@ export const RPC_URL =
 
 export const MINT_ADDRESS = process.env.NEXT_PUBLIC_MINT_ADDRESS || '';
 
-// Cost of a change in USD — paid in SOL, quoted at payment time
-export const PAY_USD = parseFloat(process.env.PAY_USD || process.env.BURN_USD || '50');
+// Fixed cost of a change, in SOL
+export const PAY_SOL = parseFloat(process.env.PAY_SOL || '2');
 
-// Server-side tolerance: accepts payments worth at least this fraction of
-// PAY_USD (absorbs SOL price drift between the client quote and verification)
-export const PAY_USD_TOLERANCE = 0.9;
+// Server-side tolerance: accept payments of at least this fraction of
+// PAY_SOL (tiny cushion against rounding)
+export const PAY_TOLERANCE = 0.99;
 
 // Wallet that receives the SOL payment for each change
 export const PAY_TO_WALLET =
